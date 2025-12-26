@@ -10,7 +10,7 @@ $config = [
     'controllerNamespace' => 'app\commands',
     'aliases' => [
         '@bower' => '@vendor/bower-asset',
-        '@npm'   => '@vendor/npm-asset',
+        '@npm' => '@vendor/npm-asset',
         '@tests' => '@app/tests',
     ],
     'components' => [
@@ -26,32 +26,38 @@ $config = [
             ],
         ],
         'db' => $db,
-        
-        // DODAJ MAILER - to samo co w web.php
+        'formatter' => [
+            'class' => 'yii\i18n\Formatter',
+            'dateFormat' => 'php:Y-m-d',
+            'datetimeFormat' => 'php:Y-m-d H:i:s',
+            'timeFormat' => 'php:H:i:s',
+            'defaultTimeZone' => 'Europe/Warsaw',
+            'locale' => 'pl-PL',
+        ],
         'mailer' => [
             'class' => \yii\symfonymailer\Mailer::class,
             'viewPath' => '@app/mail',
             'useFileTransport' => filter_var(
-                getenv('MAILER_USE_FILE_TRANSPORT') ?: 'true',
-                FILTER_VALIDATE_BOOLEAN
+                    getenv('MAILER_USE_FILE_TRANSPORT') ?: 'true',
+                    FILTER_VALIDATE_BOOLEAN
             ),
             'transport' => [
                 'scheme' => getenv('SMTP_ENCRYPTION') ?: 'smtps',
                 'host' => getenv('SMTP_HOST') ?: 'smtp.hostinger.com',
                 'username' => getenv('SMTP_USERNAME') ?: '',
                 'password' => getenv('SMTP_PASSWORD') ?: '',
-                'port' => (int)(getenv('SMTP_PORT') ?: 465),
+                'port' => (int) (getenv('SMTP_PORT') ?: 465),
             ],
         ],
     ],
     'params' => $params,
-    /*
-    'controllerMap' => [
-        'fixture' => [ // Fixture generation command line.
-            'class' => 'yii\faker\FixtureController',
-        ],
-    ],
-    */
+        /*
+          'controllerMap' => [
+          'fixture' => [ // Fixture generation command line.
+          'class' => 'yii\faker\FixtureController',
+          ],
+          ],
+         */
 ];
 
 if (YII_ENV_DEV) {

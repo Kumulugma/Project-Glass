@@ -81,10 +81,13 @@ $this->title = 'Powiadomienia';
                 'layout' => "{items}\n{pager}",
                 'columns' => [
                     [
-                        'attribute' => 'created_at',
-                        'format' => 'datetime',
-                        'headerOptions' => ['style' => 'width: 180px'],
-                    ],
+    'attribute' => 'created_at',
+    'format' => 'raw',
+    'value' => function($model) {
+        return date('Y-m-d H:i:s', $model->created_at);
+    },
+    'headerOptions' => ['style' => 'width: 180px'],
+],
                     [
                         'attribute' => 'task_id',
                         'label' => 'Zadanie',
@@ -126,13 +129,13 @@ $this->title = 'Powiadomienia';
                         'headerOptions' => ['style' => 'width: 80px'],
                     ],
                     [
-                        'attribute' => 'sent_at',
-                        'format' => 'datetime',
-                        'value' => function($model) {
-                            return $model->sent_at ? Yii::$app->formatter->asDatetime($model->sent_at) : '-';
-                        },
-                        'headerOptions' => ['style' => 'width: 180px'],
-                    ],
+    'attribute' => 'sent_at',
+    'format' => 'raw',  // ← ZMIEŃ z 'datetime' na 'raw'
+    'value' => function($model) {
+        return $model->sent_at ? date('Y-m-d H:i:s', $model->sent_at) : '-';
+    },
+    'headerOptions' => ['style' => 'width: 180px'],
+],
                     [
                         'class' => 'yii\grid\ActionColumn',
                         'template' => '{view} {resend} {delete}',
