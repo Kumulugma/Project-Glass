@@ -175,11 +175,78 @@ use yii\widgets\ActiveForm;
 $parsersData = json_encode($parsers);
 $fetchersData = json_encode($fetchers);
 
+// ============================================================
+// NOWE: Przykładowe konfiguracje dla każdego parsera
+// ============================================================
+$parserExamples = [
+    'ReminderParser' => json_encode([
+        'due_date' => '2025-02-15',
+        'notify_before_days' => 3,
+        'amount' => 150.00,
+        'currency' => 'PLN',
+        'reminder_message' => 'Za {{days_until}} dni: {{task_name}} - {{amount}} {{currency}}',
+        'today_message' => 'DZISIAJ upływa termin: {{task_name}} - {{amount}} {{currency}}',
+        'overdue_message' => 'PRZETERMINOWANE ({{days_until}} dni temu): {{task_name}}'
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+    
+    'PlantReminderParser' => json_encode([
+        'action' => 'wysiew',
+        'start_date' => '2025-03-01',
+        'end_date' => '2025-03-31',
+        'reminder_message' => '🌱 Pamiętaj o {{action}}: {{plant_name}} (pozostało {{days_until_end}} dni)',
+        'overdue_message' => 'Minął okres {{action}} dla: {{plant_name}}'
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+    
+    'ShoppingItemParser' => json_encode([
+        'shopping_category' => 'normalny',
+        'message' => '🛒 Do kupienia: {{item_name}} - {{amount}} {{currency}}'
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+    
+    'JsonEndpointParser' => json_encode([
+        'fields_to_extract' => [
+            'data.users.count' => ['transform' => 'int'],
+            'data.status' => []
+        ],
+        'conditions' => [
+            [
+                'field' => 'data.users.count',
+                'operator' => '>',
+                'value' => 1000,
+                'type' => 'alert',
+                'subject' => 'Przekroczono limit użytkowników',
+                'message' => 'Mamy już {{data.users.count}} użytkowników!',
+                'priority' => 3
+            ]
+        ]
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+    
+    'AggregateParser' => json_encode([
+        'source_category' => 'rachunki',
+        'aggregate_type' => 'sum_amount',
+        'period' => 'month',
+        'report_message' => 'Suma rachunków w tym miesiącu: {{total_amount}} {{currency}}'
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+    
+    'DatabaseFetcher' => json_encode([
+        'table' => 'tasks',
+        'select' => '*',
+        'where' => ['status' => 'active'],
+        'order_by' => 'created_at DESC',
+        'limit' => 100
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+];
+
+$parserExamplesJson = json_encode($parserExamples);
+
 $this->registerJs(<<<JS
 const parsers = $parsersData;
 const fetchers = $fetchersData;
+const parserExamples = $parserExamplesJson;
 
-// Automatyczne ustawienie fetchera na podstawie parsera
+// Zapamiętaj poprzednio wybranego parsera
+let previousParser = $('#parser-select').val();
+
+// Automatyczne ustawienie fetchera na podstawie parsera + przykładowa konfiguracja
 $('#parser-select').on('change', function() {
     const parserClass = $(this).val();
     const parser = parsers.find(p => p.class === parserClass);
@@ -192,6 +259,36 @@ $('#parser-select').on('change', function() {
         if (parser.required_fetcher) {
             $('#fetcher-select').val(parser.required_fetcher);
             $('#fetcher-select').trigger('change');
+        }
+        
+        // POPRAWIONE: Załaduj przykładową konfigurację przy zmianie parsera
+        if (parserExamples[parserClass]) {
+            const currentConfig = $('#task-config').val().trim();
+            const currentParser = parserClass;
+            
+            // Warunki do wstawienia nowej konfiguracji:
+            // 1. Pole jest puste, LUB
+            // 2. Parser został zmieniony (nie jest to pierwsze załadowanie strony), LUB
+            // 3. Obecna konfiguracja to przykład z innego parsera
+            const shouldLoadExample = (
+                !currentConfig || 
+                currentConfig === '' || 
+                (previousParser && previousParser !== currentParser) ||
+                currentConfig.startsWith('{\\n  "amount"')
+            );
+            
+            if (shouldLoadExample) {
+                $('#task-config').val(parserExamples[parserClass]);
+                
+                // Dodaj animację dla lepszego UX (opcjonalne)
+                $('#task-config').css('background-color', '#fffbcc');
+                setTimeout(function() {
+                    $('#task-config').css('background-color', '');
+                }, 500);
+            }
+            
+            // Zaktualizuj poprzedniego parsera
+            previousParser = currentParser;
         }
     } else {
         $('#parser-description').text('');

@@ -1,6 +1,6 @@
 <?php
 
-namespace app\components\notifications;
+namespace app\components\channels;
 
 use app\models\NotificationQueue;
 

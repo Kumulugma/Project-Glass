@@ -1,4 +1,5 @@
 <?php
+// models/PushSubscription.php
 
 namespace app\models;
 
@@ -7,35 +8,29 @@ use yii\db\ActiveRecord;
 use yii\behaviors\TimestampBehavior;
 
 /**
- * Model PushSubscription
- *
+ * Model dla przechowywania subskrypcji Web Push
+ * 
  * @property int $id
- * @property int|null $user_id
+ * @property int $user_id
  * @property string $endpoint
- * @property string|null $public_key
- * @property string|null $auth_token
- * @property string|null $user_agent
- * @property string|null $device_name
+ * @property string $public_key
+ * @property string $auth_token
+ * @property string $user_agent
+ * @property string $device_name
  * @property bool $is_active
- * @property string|null $last_used_at
- * @property string|null $failed_at
- * @property string|null $failure_reason
+ * @property string $last_used_at
+ * @property string $failed_at
+ * @property string $failure_reason
  * @property int $created_at
  * @property int $updated_at
  */
 class PushSubscription extends ActiveRecord
 {
-    /**
-     * @inheritdoc
-     */
     public static function tableName()
     {
         return '{{%push_subscriptions}}';
     }
     
-    /**
-     * @inheritdoc
-     */
     public function behaviors()
     {
         return [
@@ -43,9 +38,6 @@ class PushSubscription extends ActiveRecord
         ];
     }
     
-    /**
-     * @inheritdoc
-     */
     public function rules()
     {
         return [
@@ -55,98 +47,91 @@ class PushSubscription extends ActiveRecord
             [['public_key', 'auth_token'], 'string', 'max' => 255],
             [['device_name'], 'string', 'max' => 100],
             [['is_active'], 'boolean'],
-            [['last_used_at', 'failed_at'], 'safe'],
-            [['endpoint'], 'unique'],
-            
-            // Domyślne wartości
             [['is_active'], 'default', 'value' => true],
+            [['last_used_at', 'failed_at'], 'safe'],
         ];
     }
     
-    /**
-     * @inheritdoc
-     */
     public function attributeLabels()
     {
         return [
             'id' => 'ID',
+            'user_id' => 'Użytkownik',
             'endpoint' => 'Endpoint',
-            'device_name' => 'Urządzenie',
+            'public_key' => 'Klucz publiczny',
+            'auth_token' => 'Token autoryzacyjny',
+            'user_agent' => 'Przeglądarka',
+            'device_name' => 'Nazwa urządzenia',
             'is_active' => 'Aktywna',
+            'last_used_at' => 'Ostatnie użycie',
+            'failed_at' => 'Błąd',
+            'failure_reason' => 'Powód błędu',
             'created_at' => 'Utworzono',
+            'updated_at' => 'Zaktualizowano',
         ];
     }
     
     /**
-     * Tworzy lub aktualizuje subskrypcję
+     * Znajduje aktywne subskrypcje
+     * 
+     * @return PushSubscription[]
      */
-    public static function createOrUpdate($subscriptionData, $userId = null)
+    public static function findActive()
     {
-        $endpoint = $subscriptionData['endpoint'] ?? null;
-        if (!$endpoint) {
-            throw new \Exception('Brak endpointu w danych subskrypcji');
-        }
-        
-        // Szukaj istniejącej
-        $subscription = self::findOne(['endpoint' => $endpoint]);
-        if (!$subscription) {
-            $subscription = new self();
-            $subscription->endpoint = $endpoint;
-        }
-        
-        // Aktualizuj dane
-        $subscription->user_id = $userId;
-        $subscription->public_key = $subscriptionData['keys']['p256dh'] ?? null;
-        $subscription->auth_token = $subscriptionData['keys']['auth'] ?? null;
-        $subscription->is_active = true;
-        $subscription->last_used_at = date('Y-m-d H:i:s');
-        
-        // User agent z request
-        if (isset($_SERVER['HTTP_USER_AGENT'])) {
-            $subscription->user_agent = $_SERVER['HTTP_USER_AGENT'];
-        }
-        
-        $subscription->save();
-        
-        return $subscription;
+        return static::find()
+            ->where(['is_active' => true])
+            ->andWhere(['or', ['failed_at' => null], ['<', 'failed_at', date('Y-m-d H:i:s', strtotime('-7 days'))]])
+            ->all();
     }
     
     /**
-     * Oznacza jako nieaktywną
+     * Oznacz jako nieaktywną
+     * 
+     * @param string $reason
+     * @return bool
      */
     public function markAsInactive($reason = null)
     {
         $this->is_active = false;
         $this->failed_at = date('Y-m-d H:i:s');
         $this->failure_reason = $reason;
-        $this->save();
-    }
-    
-    /**
-     * Aktualizuje last_used_at
-     */
-    public function touch()
-    {
-        $this->last_used_at = date('Y-m-d H:i:s');
-        $this->save(false, ['last_used_at']);
-    }
-    
-    /**
-     * Zwraca wszystkie aktywne subskrypcje
-     */
-    public static function findActive($userId = null)
-    {
-        $query = self::find()->where(['is_active' => true]);
         
-        if ($userId !== null) {
-            $query->andWhere(['user_id' => $userId]);
+        if ($reason) {
+            Yii::info("Push subscription {$this->id} marked as inactive: {$reason}", __METHOD__);
         }
         
-        return $query->all();
+        return $this->save(false);
     }
     
     /**
-     * Zwraca dane subskrypcji w formacie dla web-push library
+     * Aktualizuj czas ostatniego użycia
+     * 
+     * @return bool
+     */
+    public function updateLastSentAt()
+    {
+        $this->last_used_at = date('Y-m-d H:i:s');
+        return $this->save(false, ['last_used_at', 'updated_at']);
+    }
+    
+    /**
+     * Oznacz jako ponownie aktywną (np. po naprawie)
+     * 
+     * @return bool
+     */
+    public function markAsActive()
+    {
+        $this->is_active = true;
+        $this->failed_at = null;
+        $this->failure_reason = null;
+        
+        return $this->save(false);
+    }
+    
+    /**
+     * Konwertuj do formatu dla web-push-php
+     * 
+     * @return array
      */
     public function toWebPushFormat()
     {
@@ -157,5 +142,48 @@ class PushSubscription extends ActiveRecord
                 'auth' => $this->auth_token,
             ],
         ];
+    }
+    
+    /**
+     * Utwórz lub zaktualizuj subskrypcję
+     * 
+     * @param array $subscriptionData
+     * @param int|null $userId
+     * @return PushSubscription|null
+     */
+    public static function createOrUpdate($subscriptionData, $userId = null)
+    {
+        $endpoint = $subscriptionData['endpoint'] ?? null;
+        
+        if (!$endpoint) {
+            return null;
+        }
+        
+        // Znajdź istniejącą lub utwórz nową
+        $subscription = static::findOne(['endpoint' => $endpoint]);
+        
+        if (!$subscription) {
+            $subscription = new static();
+            $subscription->endpoint = $endpoint;
+        }
+        
+        // Aktualizuj dane
+        $subscription->user_id = $userId;
+        $subscription->public_key = $subscriptionData['keys']['p256dh'] ?? null;
+        $subscription->auth_token = $subscriptionData['keys']['auth'] ?? null;
+        $subscription->is_active = true;
+        $subscription->failed_at = null;
+        $subscription->failure_reason = null;
+        
+        if (isset($_SERVER['HTTP_USER_AGENT'])) {
+            $subscription->user_agent = $_SERVER['HTTP_USER_AGENT'];
+        }
+        
+        if ($subscription->save()) {
+            return $subscription;
+        }
+        
+        Yii::error("Failed to save push subscription: " . json_encode($subscription->errors), __METHOD__);
+        return null;
     }
 }

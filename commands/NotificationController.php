@@ -6,10 +6,7 @@ use Yii;
 use yii\console\Controller;
 use yii\console\ExitCode;
 use app\models\NotificationQueue;
-use app\components\notifications\EmailChannel;
-use app\components\notifications\SmsChannel;
-use app\components\notifications\PushChannel;
-use app\components\notifications\TelegramChannel;
+use app\components\ComponentRegistry;
 
 /**
  * Console controller dla przetwarzania powiadomień
@@ -17,119 +14,102 @@ use app\components\notifications\TelegramChannel;
 class NotificationController extends Controller
 {
     /**
-     * Przetwarza kolejkę powiadomień
+     * Przetwarza kolejkę powiadomień (główna metoda)
      * 
      * Użycie: php yii notification/process
-     * 
-     * @param int $limit Ile powiadomień przetworzyć na raz (domyślnie 50)
      */
-    public function actionProcess($limit = 50)
+    public function actionProcess()
     {
-        $this->stdout("=== Notification Queue Processor ===\n");
-        $this->stdout("Time: " . date('Y-m-d H:i:s') . "\n\n");
+        $this->stdout("Processing notification queue...\n", \yii\helpers\Console::FG_CYAN);
         
-        // Pobierz gotowe do wysłania powiadomienia
-        $notifications = NotificationQueue::findReadyToSend($limit);
+        // Pobierz oczekujące powiadomienia
+        $notifications = NotificationQueue::find()
+            ->where(['status' => 'pending'])
+            ->orderBy(['priority' => SORT_DESC, 'created_at' => SORT_ASC])
+            ->limit(100)
+            ->all();
         
         if (empty($notifications)) {
-            $this->stdout("No notifications to send.\n");
+            $this->stdout("No pending notifications.\n", \yii\helpers\Console::FG_YELLOW);
             return ExitCode::OK;
         }
         
         $this->stdout("Found " . count($notifications) . " notification(s) to send:\n\n");
         
-        $sentCount = 0;
-        $failedCount = 0;
+        $sent = 0;
+        $failed = 0;
         
         foreach ($notifications as $notification) {
             $this->stdout("  [{$notification->id}] {$notification->channel} to {$notification->recipient}... ");
             
-            // Oznacz jako przetwarzane
-            $notification->markAsProcessing();
+            // Wyślij powiadomienie
+            $result = $this->sendNotification($notification);
             
-            try {
-                $result = $this->sendNotification($notification);
-                
-                if ($result['success']) {
-                    $notification->markAsSent($result['response']);
-                    $this->stdout("✓ SENT\n", \yii\helpers\Console::FG_GREEN);
-                    $sentCount++;
-                } else {
-                    $notification->markAsFailed($result['error']);
-                    
-                    if ($notification->canRetry()) {
-                        $this->stdout("✗ FAILED (will retry): {$result['error']}\n", \yii\helpers\Console::FG_YELLOW);
-                        // Przywróć status pending dla retry
-                        $notification->status = 'pending';
-                        $notification->save(false, ['status']);
-                    } else {
-                        $this->stdout("✗ FAILED (max attempts): {$result['error']}\n", \yii\helpers\Console::FG_RED);
-                    }
-                    
-                    $failedCount++;
-                }
-                
-            } catch (\Exception $e) {
-                $notification->markAsFailed($e);
-                $this->stdout("✗ EXCEPTION: {$e->getMessage()}\n", \yii\helpers\Console::FG_RED);
-                $failedCount++;
+            if ($result['success']) {
+                $this->stdout("✓ Sent\n", \yii\helpers\Console::FG_GREEN);
+                $notification->markAsSent($result['response']);
+                $sent++;
+            } else {
+                $this->stdout("✗ Failed: {$result['error']}\n", \yii\helpers\Console::FG_RED);
+                $notification->markAsFailed($result['error']);
+                $failed++;
             }
         }
         
-        $this->stdout("\n=== Summary ===\n");
-        $this->stdout("Sent: {$sentCount}\n", \yii\helpers\Console::FG_GREEN);
-        $this->stdout("Failed: {$failedCount}\n", $failedCount > 0 ? \yii\helpers\Console::FG_RED : \yii\helpers\Console::FG_GREEN);
-        $this->stdout("Total: " . count($notifications) . "\n\n");
+        // Podsumowanie
+        $this->stdout("\nSummary:\n", \yii\helpers\Console::BOLD);
+        $this->stdout("  Sent: {$sent}\n", \yii\helpers\Console::FG_GREEN);
+        $this->stdout("  Failed: {$failed}\n", \yii\helpers\Console::FG_RED);
+        $this->stdout("  Total: " . count($notifications) . "\n\n");
         
         return ExitCode::OK;
     }
     
     /**
      * Wysyła powiadomienie przez odpowiedni kanał
+     *
+     * @param NotificationQueue $notification
+     * @return array
      */
-    private function sendNotification(NotificationQueue $notification)
+    private function sendNotification($notification)
     {
-        $channel = $this->getChannel($notification->channel);
+        // Pobierz channel przez ComponentRegistry
+        $channel = ComponentRegistry::getChannel($notification->channel);
         
         if (!$channel) {
             return [
                 'success' => false,
                 'response' => null,
-                'error' => "Unknown channel: {$notification->channel}",
+                'error' => "Channel nie został znaleziony: {$notification->channel}",
             ];
         }
         
+        // Sprawdź czy channel jest skonfigurowany i włączony
         if (!$channel->isAvailable()) {
             return [
                 'success' => false,
                 'response' => null,
-                'error' => "Channel {$notification->channel} is not available (check config)",
+                'error' => "Channel '{$notification->channel}' nie jest dostępny lub wyłączony. Sprawdź /settings/channel?id={$notification->channel}",
             ];
         }
         
-        return $channel->send($notification);
-    }
-    
-    /**
-     * Zwraca instancję kanału powiadomień
-     */
-    private function getChannel($channelName)
-    {
-        switch ($channelName) {
-            case 'email':
-                return new EmailChannel();
+        // Wyślij powiadomienie
+        try {
+            return $channel->send($notification);
+        } catch (\Exception $e) {
+            Yii::error([
+                'message' => 'Channel send exception',
+                'channel' => $notification->channel,
+                'notification_id' => $notification->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ], __METHOD__);
             
-            case 'sms':
-                return new SmsChannel();
-            
-            case 'push':
-                return new PushChannel();
-            
-            case 'telegram':
-                return new TelegramChannel();
-            
-            default:
-                return null;
+            return [
+                'success' => false,
+                'response' => null,
+                'error' => 'Exception: ' . $e->getMessage(),
+            ];
         }
     }
     
@@ -151,39 +131,94 @@ class NotificationController extends Controller
         $notifications = $query->limit(50)->all();
         
         if (empty($notifications)) {
-            $this->stdout("No notifications found.\n");
+            $this->stdout("No notifications found.\n", \yii\helpers\Console::FG_YELLOW);
             return ExitCode::OK;
         }
         
-        $this->stdout(sprintf("%-5s %-10s %-20s %-10s %-15s %-20s\n",
+        $this->stdout(sprintf("%-5s %-10s %-30s %-10s %-10s %-20s\n",
             'ID', 'Channel', 'Recipient', 'Status', 'Attempts', 'Created'
-        ));
+        ), \yii\helpers\Console::BOLD);
+        
         $this->stdout(str_repeat('-', 100) . "\n");
         
         foreach ($notifications as $notification) {
-            $created = date('Y-m-d H:i', $notification->created_at);
-            $recipient = mb_substr($notification->recipient, 0, 20);
-            
             $color = match($notification->status) {
                 'sent' => \yii\helpers\Console::FG_GREEN,
                 'failed' => \yii\helpers\Console::FG_RED,
-                'processing' => \yii\helpers\Console::FG_YELLOW,
+                'pending' => \yii\helpers\Console::FG_YELLOW,
                 default => \yii\helpers\Console::FG_GREY,
             };
             
-            $this->stdout(sprintf("%-5s %-10s %-20s ",
+            $this->stdout(sprintf("%-5s %-10s %-30s %-10s %-10s %-20s\n",
                 $notification->id,
-                $notification->channel,
-                $recipient
-            ));
-            $this->stdout(sprintf("%-10s ", $notification->status), $color);
-            $this->stdout(sprintf("%-15s %-20s\n",
-                "{$notification->attempts}/{$notification->max_attempts}",
-                $created
-            ));
+                substr($notification->channel, 0, 10),
+                substr($notification->recipient, 0, 30),
+                $notification->status,
+                $notification->attempts,
+                date('Y-m-d H:i:s', $notification->created_at)
+            ), $color);
         }
         
-        $this->stdout("\nShowing last 50 notification(s)\n");
+        $this->stdout("\nTotal: " . count($notifications) . "\n");
+        
+        return ExitCode::OK;
+    }
+    
+    /**
+     * Retry failed notifications
+     * 
+     * Użycie: php yii notification/retry [limit]
+     * 
+     * @param int $limit Maksymalna liczba powiadomień do ponowienia (domyślnie 10)
+     */
+    public function actionRetry($limit = 10)
+    {
+        $this->stdout("Retrying failed notifications...\n", \yii\helpers\Console::FG_CYAN);
+        
+        // Pobierz nieudane powiadomienia
+        $notifications = NotificationQueue::find()
+            ->where(['status' => 'failed'])
+            ->andWhere(['<', 'attempts', 3]) // Maksymalnie 3 próby
+            ->orderBy(['created_at' => SORT_ASC])
+            ->limit($limit)
+            ->all();
+        
+        if (empty($notifications)) {
+            $this->stdout("No failed notifications to retry.\n", \yii\helpers\Console::FG_YELLOW);
+            return ExitCode::OK;
+        }
+        
+        $this->stdout("Found " . count($notifications) . " notification(s) to retry:\n\n");
+        
+        $success = 0;
+        $failed = 0;
+        
+        foreach ($notifications as $notification) {
+            $this->stdout("  [{$notification->id}] {$notification->channel} to {$notification->recipient}... ");
+            
+            // Zresetuj status na pending
+            $notification->status = 'pending';
+            $notification->save(false, ['status']);
+            
+            // Wyślij ponownie
+            $result = $this->sendNotification($notification);
+            
+            if ($result['success']) {
+                $this->stdout("✓ Sent\n", \yii\helpers\Console::FG_GREEN);
+                $notification->markAsSent($result['response']);
+                $success++;
+            } else {
+                $this->stdout("✗ Failed again: {$result['error']}\n", \yii\helpers\Console::FG_RED);
+                $notification->markAsFailed($result['error']);
+                $failed++;
+            }
+        }
+        
+        // Podsumowanie
+        $this->stdout("\nRetry Summary:\n", \yii\helpers\Console::BOLD);
+        $this->stdout("  Success: {$success}\n", \yii\helpers\Console::FG_GREEN);
+        $this->stdout("  Failed: {$failed}\n", \yii\helpers\Console::FG_RED);
+        $this->stdout("  Total: " . count($notifications) . "\n\n");
         
         return ExitCode::OK;
     }
@@ -197,58 +232,75 @@ class NotificationController extends Controller
      */
     public function actionCleanup($days = 30)
     {
-        $this->stdout("Cleaning up notifications older than {$days} days...\n");
+        $this->stdout("Cleaning up old notifications (older than {$days} days)...\n", \yii\helpers\Console::FG_CYAN);
         
-        $threshold = date('Y-m-d H:i:s', strtotime("-{$days} days"));
+        $cutoffDate = time() - ($days * 86400);
         
-        $deleted = NotificationQueue::deleteAll([
-            'and',
-            ['in', 'status', ['sent', 'failed']],
-            ['<', 'FROM_UNIXTIME(created_at)', $threshold]
-        ]);
+        $count = NotificationQueue::deleteAll(['<', 'created_at', $cutoffDate]);
         
-        $this->stdout("Deleted {$deleted} old notification(s)\n");
+        if ($count > 0) {
+            $this->stdout("Deleted {$count} old notification(s).\n", \yii\helpers\Console::FG_GREEN);
+        } else {
+            $this->stdout("No old notifications to delete.\n", \yii\helpers\Console::FG_YELLOW);
+        }
         
         return ExitCode::OK;
     }
     
     /**
-     * Retry failed notifications
+     * Alias dla actionProcess (dla kompatybilności wstecznej)
      * 
-     * Użycie: php yii notification/retry [id]
-     * 
-     * @param int|null $id ID konkretnego powiadomienia lub null dla wszystkich failed
+     * Użycie: php yii notification/send-pending
      */
-    public function actionRetry($id = null)
+    public function actionSendPending()
     {
-        if ($id) {
-            $notification = NotificationQueue::findOne($id);
-            
-            if (!$notification) {
-                $this->stderr("Notification #{$id} not found.\n");
-                return ExitCode::DATAERR;
-            }
-            
-            if (!in_array($notification->status, ['failed', 'cancelled'])) {
-                $this->stderr("Notification #{$id} cannot be retried (status: {$notification->status}).\n");
-                return ExitCode::DATAERR;
-            }
-            
-            $notification->status = 'pending';
-            $notification->attempts = 0;
-            $notification->error_message = null;
-            $notification->save();
-            
-            $this->stdout("Notification #{$id} marked for retry.\n");
-            
-        } else {
-            $count = NotificationQueue::updateAll(
-                ['status' => 'pending', 'attempts' => 0, 'error_message' => null],
-                ['status' => 'failed']
-            );
-            
-            $this->stdout("Marked {$count} failed notification(s) for retry.\n");
+        return $this->actionProcess();
+    }
+    
+    /**
+     * Pokazuje statystyki powiadomień
+     * 
+     * Użycie: php yii notification/stats
+     */
+    public function actionStats()
+    {
+        $this->stdout("=== Notification Queue Statistics ===\n\n", \yii\helpers\Console::BOLD);
+        
+        // Statystyki według statusu
+        $pending = NotificationQueue::find()->where(['status' => 'pending'])->count();
+        $sent = NotificationQueue::find()->where(['status' => 'sent'])->count();
+        $failed = NotificationQueue::find()->where(['status' => 'failed'])->count();
+        
+        $this->stdout("By Status:\n", \yii\helpers\Console::FG_CYAN);
+        $this->stdout("  Pending: {$pending}\n", \yii\helpers\Console::FG_YELLOW);
+        $this->stdout("  Sent: {$sent}\n", \yii\helpers\Console::FG_GREEN);
+        $this->stdout("  Failed: {$failed}\n", \yii\helpers\Console::FG_RED);
+        $this->stdout("\n");
+        
+        // Statystyki według kanału
+        $this->stdout("By Channel:\n", \yii\helpers\Console::FG_CYAN);
+        
+        $channels = NotificationQueue::find()
+            ->select(['channel', 'COUNT(*) as count'])
+            ->groupBy('channel')
+            ->asArray()
+            ->all();
+        
+        foreach ($channels as $channel) {
+            $this->stdout("  {$channel['channel']}: {$channel['count']}\n");
         }
+        
+        $this->stdout("\n");
+        
+        // Ostatnie powiadomienia
+        $this->stdout("Recent Activity (last 24h):\n", \yii\helpers\Console::FG_CYAN);
+        
+        $last24h = time() - 86400;
+        $recentCount = NotificationQueue::find()
+            ->where(['>', 'created_at', $last24h])
+            ->count();
+        
+        $this->stdout("  Total: {$recentCount}\n");
         
         return ExitCode::OK;
     }

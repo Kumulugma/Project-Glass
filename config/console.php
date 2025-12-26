@@ -26,6 +26,23 @@ $config = [
             ],
         ],
         'db' => $db,
+        
+        // DODAJ MAILER - to samo co w web.php
+        'mailer' => [
+            'class' => \yii\symfonymailer\Mailer::class,
+            'viewPath' => '@app/mail',
+            'useFileTransport' => filter_var(
+                getenv('MAILER_USE_FILE_TRANSPORT') ?: 'true',
+                FILTER_VALIDATE_BOOLEAN
+            ),
+            'transport' => [
+                'scheme' => getenv('SMTP_ENCRYPTION') ?: 'smtps',
+                'host' => getenv('SMTP_HOST') ?: 'smtp.hostinger.com',
+                'username' => getenv('SMTP_USERNAME') ?: '',
+                'password' => getenv('SMTP_PASSWORD') ?: '',
+                'port' => (int)(getenv('SMTP_PORT') ?: 465),
+            ],
+        ],
     ],
     'params' => $params,
     /*
@@ -43,14 +60,7 @@ if (YII_ENV_DEV) {
     $config['modules']['gii'] = [
         'class' => 'yii\gii\Module',
     ];
-    // configuration adjustments for 'dev' environment
-    // requires version `2.1.21` of yii2-debug module
-    $config['bootstrap'][] = 'debug';
-    $config['modules']['debug'] = [
-        'class' => 'yii\debug\Module',
-        // uncomment the following to add your IP if you are not connecting from localhost.
-        //'allowedIPs' => ['127.0.0.1', '::1'],
-    ];
+    // configuration adjustments for 'gii' module
 }
 
 return $config;

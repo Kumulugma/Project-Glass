@@ -1,9 +1,8 @@
 <?php
-
 /** @var yii\web\View $this */
 /** @var array $channels */
-/** @var array $channelStatuses */
 
+/** @var array $channelStatuses */
 use yii\helpers\Html;
 use yii\helpers\Url;
 
@@ -12,7 +11,7 @@ $this->params['breadcrumbs'][] = $this->title;
 ?>
 
 <div class="settings-index">
-    
+
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1><?= Html::encode($this->title) ?></h1>
     </div>
@@ -54,25 +53,29 @@ $this->params['breadcrumbs'][] = $this->title;
                                         </p>
                                     </div>
                                     <div class="btn-group" role="group">
-                                        <?= Html::a(
-                                            '<i class="fas fa-cog"></i> Konfiguruj',
-                                            ['channel', 'id' => $channel['identifier']],
-                                            ['class' => 'btn btn-sm btn-primary']
-                                        ) ?>
-                                        <?= Html::a(
-                                            $isEnabled ? '<i class="fas fa-toggle-on"></i>' : '<i class="fas fa-toggle-off"></i>',
-                                            ['toggle', 'id' => $channel['identifier']],
-                                            [
-                                                'class' => 'btn btn-sm ' . ($isEnabled ? 'btn-success' : 'btn-secondary'),
-                                                'data-method' => 'post',
-                                                'title' => $isEnabled ? 'Wyłącz' : 'Włącz',
-                                            ]
-                                        ) ?>
+                                        <?=
+                                        Html::a(
+                                                '<i class="fas fa-cog"></i> Konfiguruj',
+                                                ['/settings/channel', 'id' => $channel['identifier']], // Dodaj / na początku
+                                                ['class' => 'btn btn-sm btn-primary']
+                                        )
+                                        ?>
+                                        <?=
+                                        Html::a(
+                                                $isEnabled ? '<i class="fas fa-toggle-on"></i>' : '<i class="fas fa-toggle-off"></i>',
+                                                ['/settings/toggle', 'id' => $channel['identifier']], // Dodaj / na początku
+                                                [
+                                                    'class' => 'btn btn-sm ' . ($isEnabled ? 'btn-success' : 'btn-secondary'),
+                                                    'data-method' => 'post',
+                                                    'title' => $isEnabled ? 'Wyłącz' : 'Włącz',
+                                                ]
+                                        )
+                                        ?>
                                     </div>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+    <?php endforeach; ?>
+<?php endif; ?>
                 </div>
             </div>
         </div>

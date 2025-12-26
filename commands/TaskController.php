@@ -3,272 +3,223 @@
 namespace app\commands;
 
 use Yii;
-use yii\web\Controller;
-use yii\web\NotFoundHttpException;
-use yii\filters\VerbFilter;
-use yii\data\ActiveDataProvider;
+use yii\console\Controller;
+use yii\console\ExitCode;
 use app\models\Task;
-use app\models\TaskExecution;
-use app\models\TaskHistory;
 use app\components\TaskRunner;
 
 /**
- * TaskController dla web interface
+ * Console controller dla zarządzania taskami
  */
 class TaskController extends Controller
 {
     /**
-     * @inheritdoc
+     * Uruchamia zaplanowane taski (według cron schedule)
+     * 
+     * Użycie: php yii task/run-scheduled
      */
-    public function behaviors()
+    public function actionRunScheduled()
     {
-        return [
-            'verbs' => [
-                'class' => VerbFilter::class,
-                'actions' => [
-                    'delete' => ['POST'],
-                    'run' => ['POST'],
-                    'complete' => ['POST'],
-                    'pause' => ['POST'],
-                    'resume' => ['POST'],
-                ],
-            ],
-        ];
-    }
-    
-    /**
-     * Lista tasków
-     */
-    public function actionIndex($category = null, $status = null)
-    {
-        $query = Task::find();
+        $this->stdout("Checking for scheduled tasks...\n", \yii\helpers\Console::FG_CYAN);
         
-        if ($category) {
-            $query->andWhere(['category' => $category]);
+        // Znajdź aktywne taski
+        $tasks = Task::find()
+            ->where(['status' => 'active'])
+            ->andWhere(['!=', 'schedule', 'manual'])
+            ->all();
+        
+        if (empty($tasks)) {
+            $this->stdout("No active tasks found.\n", \yii\helpers\Console::FG_YELLOW);
+            return ExitCode::OK;
         }
         
-        if ($status) {
-            $query->andWhere(['status' => $status]);
-        }
+        $this->stdout("Found " . count($tasks) . " active tasks\n\n");
         
-        $dataProvider = new ActiveDataProvider([
-            'query' => $query->orderBy(['id' => SORT_DESC]),
-            'pagination' => [
-                'pageSize' => 50,
-            ],
-        ]);
+        $executed = 0;
+        $skipped = 0;
+        $failed = 0;
         
-        // Pobierz kategorie dla filtrowania
-        $categories = Task::find()
-            ->select('category')
-            ->distinct()
-            ->where(['not', ['category' => null]])
-            ->column();
-        
-        return $this->render('index', [
-            'dataProvider' => $dataProvider,
-            'categories' => $categories,
-            'selectedCategory' => $category,
-            'selectedStatus' => $status,
-        ]);
-    }
-    
-    /**
-     * Szczegóły taska
-     */
-    public function actionView($id)
-    {
-        $model = $this->findModel($id);
-        
-        // Historia wykonań
-        $executionsProvider = new ActiveDataProvider([
-            'query' => TaskExecution::find()
-                ->where(['task_id' => $id])
-                ->orderBy(['started_at' => SORT_DESC]),
-            'pagination' => ['pageSize' => 20],
-        ]);
-        
-        // Historia zmian
-        $historyProvider = new ActiveDataProvider([
-            'query' => TaskHistory::find()
-                ->where(['task_id' => $id])
-                ->orderBy(['created_at' => SORT_DESC]),
-            'pagination' => ['pageSize' => 20],
-        ]);
-        
-        return $this->render('view', [
-            'model' => $model,
-            'executionsProvider' => $executionsProvider,
-            'historyProvider' => $historyProvider,
-        ]);
-    }
-    
-    /**
-     * Tworzenie nowego taska
-     */
-    public function actionCreate($parser = null, $category = null)
-    {
-        $model = new Task();
-        
-        // Ustaw domyślne wartości z parametrów
-        if ($parser) {
-            $model->parser_class = $parser;
+        foreach ($tasks as $task) {
+            $this->stdout("Task #{$task->id}: {$task->name}\n", \yii\helpers\Console::BOLD);
+            $this->stdout("  Schedule: {$task->schedule}\n");
             
-            // Ustaw domyślny fetcher
-            $parserClass = '\\app\\components\\parsers\\' . $parser;
-            if (class_exists($parserClass)) {
-                $model->fetcher_class = $parserClass::getDefaultFetcherClass();
+            // Sprawdź czy task powinien się uruchomić
+            if (!$task->shouldRunNow()) {
+                $nextRun = $task->getNextRunTime();
+                $this->stdout("  Status: Not due yet (next: {$nextRun})\n", \yii\helpers\Console::FG_YELLOW);
+                $skipped++;
+                continue;
             }
+            
+            // Uruchom task
+            $this->stdout("  Status: Running...\n", \yii\helpers\Console::FG_GREEN);
+            
+            try {
+                $runner = new TaskRunner($task);
+                $execution = $runner->run();
+                
+                if ($execution->isSuccess()) {
+                    $this->stdout("  ✓ Completed successfully\n", \yii\helpers\Console::FG_GREEN);
+                    $executed++;
+                } else {
+                    $this->stdout("  ✗ Failed: {$execution->error_message}\n", \yii\helpers\Console::FG_RED);
+                    $failed++;
+                }
+            } catch (\Exception $e) {
+                $this->stdout("  ✗ Exception: {$e->getMessage()}\n", \yii\helpers\Console::FG_RED);
+                $failed++;
+            }
+            
+            $this->stdout("\n");
         }
         
-        if ($category) {
-            $model->category = $category;
-        }
+        // Podsumowanie
+        $this->stdout("=== Summary ===\n", \yii\helpers\Console::BOLD);
+        $this->stdout("Executed: {$executed}\n", \yii\helpers\Console::FG_GREEN);
+        $this->stdout("Skipped: {$skipped}\n", \yii\helpers\Console::FG_YELLOW);
+        $this->stdout("Failed: {$failed}\n", \yii\helpers\Console::FG_RED);
         
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Task utworzony pomyślnie.');
-            return $this->redirect(['view', 'id' => $model->id]);
-        }
-        
-        // Lista dostępnych parserów
-        $parsers = $this->getAvailableParsers();
-        
-        return $this->render('create', [
-            'model' => $model,
-            'parsers' => $parsers,
-        ]);
+        return ExitCode::OK;
     }
     
     /**
-     * Edycja taska
-     */
-    public function actionUpdate($id)
-    {
-        $model = $this->findModel($id);
-        
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Task zaktualizowany pomyślnie.');
-            return $this->redirect(['view', 'id' => $model->id]);
-        }
-        
-        $parsers = $this->getAvailableParsers();
-        
-        return $this->render('update', [
-            'model' => $model,
-            'parsers' => $parsers,
-        ]);
+ * Uruchamia konkretny task (ignoruje harmonogram)
+ * 
+ * Użycie: 
+ *   php yii task/run 1          - uruchom task #1
+ *   php yii task/run --all      - uruchom wszystkie active taski
+ * 
+ * @param int|null $id ID taska do uruchomienia
+ */
+public function actionRun($id = null)
+{
+    // Jeśli użyto flagi --all
+    if ($this->all ?? false) {
+        return $this->runAllTasks();
     }
     
-    /**
-     * Usuń task
-     */
-    public function actionDelete($id)
-    {
-        $model = $this->findModel($id);
-        $model->delete();
-        
-        Yii::$app->session->setFlash('success', 'Task usunięty.');
-        return $this->redirect(['index']);
+    // Jeśli nie podano ID
+    if ($id === null) {
+        $this->stderr("Error: Missing required argument: id\n\n", \yii\helpers\Console::FG_RED);
+        $this->stdout("Usage:\n");
+        $this->stdout("  php yii task/run <id>     Run specific task\n");
+        $this->stdout("  php yii task/run --all    Run all active tasks\n");
+        $this->stdout("  php yii task/list         Show all tasks\n");
+        return ExitCode::USAGE;
     }
     
-    /**
-     * Ręczne uruchomienie taska
-     */
-    public function actionRun($id)
-    {
-        $model = $this->findModel($id);
+    $task = Task::findOne($id);
+    
+    if (!$task) {
+        $this->stderr("Task #{$id} not found.\n", \yii\helpers\Console::FG_RED);
+        return ExitCode::DATAERR;
+    }
+    
+    // ... reszta kodu bez zmian ...
+}
+
+/**
+ * Flaga --all dla uruchomienia wszystkich tasków
+ */
+public $all = false;
+
+/**
+ * @inheritdoc
+ */
+public function options($actionID)
+{
+    $options = parent::options($actionID);
+    if ($actionID === 'run') {
+        $options[] = 'all';
+    }
+    return $options;
+}
+
+/**
+ * Uruchamia wszystkie aktywne taski
+ */
+private function runAllTasks()
+{
+    $tasks = Task::find()
+        ->where(['status' => 'active'])
+        ->all();
+    
+    if (empty($tasks)) {
+        $this->stdout("No active tasks found.\n", \yii\helpers\Console::FG_YELLOW);
+        return ExitCode::OK;
+    }
+    
+    $this->stdout("Running " . count($tasks) . " active tasks...\n\n", \yii\helpers\Console::BOLD);
+    
+    $success = 0;
+    $failed = 0;
+    
+    foreach ($tasks as $task) {
+        $this->stdout("Task #{$task->id}: {$task->name} ... ", \yii\helpers\Console::FG_CYAN);
         
         try {
-            $runner = new TaskRunner($model);
+            $runner = new \app\components\TaskRunner($task);
             $execution = $runner->run();
             
             if ($execution->isSuccess()) {
-                Yii::$app->session->setFlash('success', 'Task wykonany pomyślnie!');
+                $this->stdout("✓ OK\n", \yii\helpers\Console::FG_GREEN);
+                $success++;
             } else {
-                Yii::$app->session->setFlash('error', 'Błąd wykonania: ' . $execution->error_message);
+                $this->stdout("✗ FAILED\n", \yii\helpers\Console::FG_RED);
+                $failed++;
             }
-            
         } catch (\Exception $e) {
-            Yii::$app->session->setFlash('error', 'Wyjątek: ' . $e->getMessage());
+            $this->stdout("✗ ERROR: {$e->getMessage()}\n", \yii\helpers\Console::FG_RED);
+            $failed++;
+        }
+    }
+    
+    $this->stdout("\n=== Summary ===\n", \yii\helpers\Console::BOLD);
+    $this->stdout("Success: {$success}\n", \yii\helpers\Console::FG_GREEN);
+    $this->stdout("Failed: {$failed}\n", \yii\helpers\Console::FG_RED);
+    
+    return $failed === 0 ? ExitCode::OK : ExitCode::UNSPECIFIED_ERROR;
+}
+    
+    /**
+     * Lista wszystkich tasków
+     * 
+     * Użycie: php yii task/list
+     */
+    public function actionList()
+    {
+        $tasks = Task::find()->orderBy(['id' => SORT_ASC])->all();
+        
+        if (empty($tasks)) {
+            $this->stdout("No tasks found.\n", \yii\helpers\Console::FG_YELLOW);
+            return ExitCode::OK;
         }
         
-        return $this->redirect(['view', 'id' => $id]);
-    }
-    
-    /**
-     * Oznacz jako wykonane
-     */
-    public function actionComplete($id)
-    {
-        $model = $this->findModel($id);
-        $model->markAsCompleted();
+        $this->stdout(sprintf("%-5s %-30s %-20s %-15s %-10s\n",
+            'ID', 'Name', 'Parser', 'Schedule', 'Status'
+        ), \yii\helpers\Console::BOLD);
         
-        Yii::$app->session->setFlash('success', 'Task oznaczony jako wykonany.');
-        return $this->redirect(['view', 'id' => $id]);
-    }
-    
-    /**
-     * Anuluj wykonanie
-     */
-    public function actionUncomplete($id)
-    {
-        $model = $this->findModel($id);
-        $model->markAsUncompleted();
+        $this->stdout(str_repeat('-', 85) . "\n");
         
-        Yii::$app->session->setFlash('success', 'Przywrócono status aktywny.');
-        return $this->redirect(['view', 'id' => $id]);
-    }
-    
-    /**
-     * Wstrzymaj task
-     */
-    public function actionPause($id)
-    {
-        $model = $this->findModel($id);
-        $model->status = 'paused';
-        $model->save();
-        
-        Yii::$app->session->setFlash('success', 'Task wstrzymany.');
-        return $this->redirect(['view', 'id' => $id]);
-    }
-    
-    /**
-     * Wznów task
-     */
-    public function actionResume($id)
-    {
-        $model = $this->findModel($id);
-        $model->status = 'active';
-        $model->save();
-        
-        Yii::$app->session->setFlash('success', 'Task wznowiony.');
-        return $this->redirect(['view', 'id' => $id]);
-    }
-    
-    /**
-     * Znajdź model
-     */
-    protected function findModel($id)
-    {
-        if (($model = Task::findOne($id)) !== null) {
-            return $model;
+        foreach ($tasks as $task) {
+            $color = match($task->status) {
+                'active' => \yii\helpers\Console::FG_GREEN,
+                'paused' => \yii\helpers\Console::FG_YELLOW,
+                'completed' => \yii\helpers\Console::FG_CYAN,
+                default => \yii\helpers\Console::FG_GREY,
+            };
+            
+            $this->stdout(sprintf("%-5s %-30s %-20s %-15s %-10s\n",
+                $task->id,
+                substr($task->name, 0, 30),
+                substr($task->parser_class, 0, 20),
+                substr($task->schedule, 0, 15),
+                $task->status
+            ), $color);
         }
         
-        throw new NotFoundHttpException('Task nie znaleziony.');
-    }
-    
-    /**
-     * Zwraca listę dostępnych parserów
-     */
-    private function getAvailableParsers()
-    {
-        return [
-            'UrlHealthCheckParser' => 'Sprawdzenie dostępności URL',
-            'JsonEndpointParser' => 'JSON API Endpoint',
-            'ReminderParser' => 'Przypomnienie',
-            'ShoppingItemParser' => 'Lista zakupów',
-            'PlantReminderParser' => 'Kalendarz roślin',
-            'AggregateParser' => 'Raport agregujący',
-        ];
+        $this->stdout("\nTotal: " . count($tasks) . " tasks\n");
+        
+        return ExitCode::OK;
     }
 }

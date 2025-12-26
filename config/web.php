@@ -12,7 +12,7 @@ $config = [
     'defaultRoute' => 'site/index',
     'aliases' => [
         '@bower' => '@vendor/bower-asset',
-        '@npm'   => '@vendor/npm-asset',
+        '@npm' => '@vendor/npm-asset',
     ],
     'components' => [
         'request' => [
@@ -36,13 +36,13 @@ $config = [
         'mailer' => [
             'class' => \yii\symfonymailer\Mailer::class,
             'viewPath' => '@app/mail',
-            'useFileTransport' => (bool)(getenv('MAILER_USE_FILE_TRANSPORT') ?? true),
+            'useFileTransport' => getenv('MAILER_USE_FILE_TRANSPORT') === 'false' ? false : true,
             'transport' => [
                 'scheme' => getenv('SMTP_ENCRYPTION') ?: 'tls',
                 'host' => getenv('SMTP_HOST') ?: 'localhost',
                 'username' => getenv('SMTP_USERNAME') ?: '',
                 'password' => getenv('SMTP_PASSWORD') ?: '',
-                'port' => (int)(getenv('SMTP_PORT') ?: 587),
+                'port' => (int) (getenv('SMTP_PORT') ?: 587),
             ],
         ],
         'log' => [
@@ -61,12 +61,19 @@ $config = [
             'rules' => [
                 '' => 'dashboard/index',
                 'dashboard/mobile' => 'dashboard/mobile',
+                // Task routes
                 'task/<id:\d+>' => 'task/view',
                 'task/create' => 'task/create',
                 'task/<id:\d+>/update' => 'task/update',
                 'task/<id:\d+>/delete' => 'task/delete',
                 'task/<id:\d+>/run' => 'task/run',
                 'task/<id:\d+>/complete' => 'task/complete',
+                // Settings routes
+                'settings' => 'settings/index',
+                'settings/channel' => 'settings/channel',
+                'settings/toggle' => 'settings/toggle',
+                'settings/test' => 'settings/test',
+                'settings/generate-vapid' => 'settings/generate-vapid',
             ],
         ],
     ],
@@ -78,15 +85,15 @@ if (YII_ENV_DEV) {
     $config['bootstrap'][] = 'debug';
     $config['modules']['debug'] = [
         'class' => 'yii\debug\Module',
-        // uncomment the following to add your IP if you are not connecting from localhost.
-        //'allowedIPs' => ['127.0.0.1', '::1'],
+            // uncomment the following to add your IP if you are not connecting from localhost.
+            //'allowedIPs' => ['127.0.0.1', '::1'],
     ];
 
     $config['bootstrap'][] = 'gii';
     $config['modules']['gii'] = [
         'class' => 'yii\gii\Module',
-        // uncomment the following to add your IP if you are not connecting from localhost.
-        //'allowedIPs' => ['127.0.0.1', '::1'],
+            // uncomment the following to add your IP if you are not connecting from localhost.
+            //'allowedIPs' => ['127.0.0.1', '::1'],
     ];
 }
 
