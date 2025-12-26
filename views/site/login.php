@@ -36,13 +36,13 @@ $this->title = 'Logowanie - ' . Yii::$app->name;
                         'placeholder' => 'Wpisz hasło',
                     ])->label('Hasło') ?>
 
-                    <div class="row">
-                        <div class="col-6">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
                             <?= $form->field($model, 'rememberMe')->checkbox([
                                 'template' => "<div class=\"form-check\">{input} {label}</div>\n{error}",
-                            ]) ?>
+                            ])->label(false) ?>
                         </div>
-                        <div class="col-6 text-end">
+                        <div>
                             <?= Html::a('Nie pamiętam hasła', ['/site/request-password-reset'], [
                                 'class' => 'text-decoration-none small',
                             ]) ?>
@@ -94,5 +94,26 @@ $this->title = 'Logowanie - ' . Yii::$app->name;
 .site-login .btn-primary {
     font-weight: 600;
     letter-spacing: 0.025em;
+}
+
+.site-login .form-check {
+    display: flex;
+    align-items: center;
+    padding-left: 0;
+}
+
+.site-login .form-check-input {
+    margin-right: 0.5rem;
+    cursor: pointer;
+}
+
+.site-login .form-check-label {
+    margin-bottom: 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.site-login .has-error .form-check-input {
+    border-color: #dc3545;
 }
 </style>
