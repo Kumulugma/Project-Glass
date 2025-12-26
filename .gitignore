@@ -1,33 +1,54 @@
-# phpstorm project files
-.idea
+# Yii Runtime
+/runtime/*
+!/runtime/.gitkeep
 
-# netbeans project files
-nbproject
+# Composer
+/vendor
+composer.lock
 
-# zend studio for eclipse project files
-.buildpath
-.project
-.settings
+# Environment files - NIGDY NIE COMMITUJ
+.env
+.env.local
+.env.*.local
 
-# windows thumbnail cache
+# Database configuration - zawiera hasła
+/config/db.php
+
+# User uploaded files
+/web/uploads/*
+!/web/uploads/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
 Thumbs.db
 
-# composer vendor dir
-/vendor
+# Logs
+*.log
+/web/assets/*
+!/web/assets/.gitkeep
 
-# composer itself is not needed
-composer.phar
+# Tests
+/tests/_output/*
+/tests/_support/_generated
 
-# Mac DS_Store Files
-.DS_Store
+# Cache
+.sass-cache/
+/web/css/*.map
+/web/js/*.map
 
-# phpunit itself is not needed
-phpunit.phar
-# local phpunit config
-/phpunit.xml
+# Backups
+*.bak
+*.backup
+*.sql
+*.dump
 
-tests/_output/*
-tests/_support/_generated
-
-#vagrant folder
-/.vagrant
+# Temporary files
+/tmp/*
+!/tmp/.gitkeep

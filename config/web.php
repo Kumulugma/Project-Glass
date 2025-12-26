@@ -4,17 +4,19 @@ $params = require __DIR__ . '/params.php';
 $db = require __DIR__ . '/db.php';
 
 $config = [
-    'id' => 'basic',
+    'id' => 'task-reminder',
+    'name' => 'Task Reminder System',
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
+    'language' => 'pl-PL',
     'aliases' => [
         '@bower' => '@vendor/bower-asset',
         '@npm'   => '@vendor/npm-asset',
     ],
     'components' => [
         'request' => [
-            // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
-            'cookieValidationKey' => 'KyMruC3PGGEKHAv0DN0G9H6Ui2v8v_h5',
+            'cookieValidationKey' => getenv('COOKIE_VALIDATION_KEY') ?: 'ZMIEN-TO-NA-LOSOWY-CIAG-ZNAKOW',
+            'csrfParam' => '_csrf-taskreminder',
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
@@ -22,6 +24,10 @@ $config = [
         'user' => [
             'identityClass' => 'app\models\User',
             'enableAutoLogin' => true,
+            'identityCookie' => ['name' => '_identity-taskreminder', 'httpOnly' => true],
+        ],
+        'session' => [
+            'name' => 'taskreminder-session',
         ],
         'errorHandler' => [
             'errorAction' => 'site/error',
@@ -29,8 +35,7 @@ $config = [
         'mailer' => [
             'class' => \yii\symfonymailer\Mailer::class,
             'viewPath' => '@app/mail',
-            // send all mails to a file by default.
-            'useFileTransport' => true,
+            'useFileTransport' => (bool)(getenv('MAILER_USE_FILE_TRANSPORT') ?: true),
         ],
         'log' => [
             'traceLevel' => YII_DEBUG ? 3 : 0,
@@ -42,14 +47,20 @@ $config = [
             ],
         ],
         'db' => $db,
-        /*
         'urlManager' => [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'rules' => [
+                '' => 'dashboard/index',
+                'dashboard/mobile' => 'dashboard/mobile',
+                'task/<id:\d+>' => 'task/view',
+                'task/create' => 'task/create',
+                'task/<id:\d+>/update' => 'task/update',
+                'task/<id:\d+>/delete' => 'task/delete',
+                'task/<id:\d+>/run' => 'task/run',
+                'task/<id:\d+>/complete' => 'task/complete',
             ],
         ],
-        */
     ],
     'params' => $params,
 ];
