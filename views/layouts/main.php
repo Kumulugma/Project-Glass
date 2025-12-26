@@ -68,12 +68,52 @@ $this->registerLinkTag(['rel' => 'stylesheet', 'href' => 'https://cdnjs.cloudfla
         
         .nav-link {
             font-weight: 500;
+            font-size: 0.95rem;
             transition: all 0.2s ease;
+            padding: 0.5rem 0.75rem !important;
         }
         
         .nav-link:hover {
             color: rgba(255,255,255,0.9) !important;
             transform: translateY(-1px);
+        }
+        
+        .navbar-nav .dropdown-menu {
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 0.5rem 0;
+        }
+        
+        .navbar-nav .dropdown-item {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        
+        .navbar-nav .dropdown-item:hover {
+            background: var(--glass-light);
+            color: var(--glass-primary);
+        }
+        
+        .navbar-nav .dropdown-divider {
+            margin: 0.5rem 0;
+        }
+        
+        /* Fix dla przycisku wylogowania w dropdown */
+        .navbar-nav .dropdown-item form {
+            margin: 0;
+        }
+        
+        .navbar-nav .dropdown-item .btn-link {
+            color: inherit;
+            padding: 0;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        
+        .navbar-nav .dropdown-item .btn-link:hover {
+            color: var(--glass-primary);
         }
         
         /* Main container */
@@ -364,30 +404,40 @@ $this->registerLinkTag(['rel' => 'stylesheet', 'href' => 'https://cdnjs.cloudfla
         ]);
     }
     
+    $userMenuItems = [];
+    
+    if (Yii::$app->user->isGuest) {
+        $userMenuItems[] = ['label' => '<i class="fas fa-sign-in-alt me-1"></i> Zaloguj się', 'url' => ['/site/login'], 'encode' => false];
+    } else {
+        $userMenuItems[] = [
+            'label' => '<i class="fas fa-user-circle me-1"></i> ' . Html::encode(Yii::$app->user->identity->fullName),
+            'encode' => false,
+            'items' => [
+                ['label' => '<i class="fas fa-user me-2"></i> Mój profil', 'url' => ['/user/profile'], 'encode' => false],
+                ['label' => '<i class="fas fa-key me-2"></i> Zmień hasło', 'url' => ['/user/change-password'], 'encode' => false],
+            ],
+        ];
+        $userMenuItems[] = [
+            'label' => '<i class="fas fa-sign-out-alt me-1"></i> Wyloguj się',
+            'url' => '#',
+            'encode' => false,
+            'linkOptions' => [
+                'onclick' => 'document.getElementById("logout-form").submit(); return false;',
+            ],
+        ];
+    }
+    
     echo Nav::widget([
         'options' => ['class' => 'navbar-nav ms-auto'],
-        'items' => [
-            Yii::$app->user->isGuest
-                ? ['label' => '<i class="fas fa-sign-in-alt me-1"></i> Zaloguj się', 'url' => ['/site/login'], 'encode' => false]
-                : [
-                    'label' => '<i class="fas fa-user-circle me-1"></i> ' . Html::encode(Yii::$app->user->identity->fullName),
-                    'encode' => false,
-                    'items' => [
-                        ['label' => '<i class="fas fa-user me-2"></i> Mój profil', 'url' => ['/user/profile'], 'encode' => false],
-                        ['label' => '<i class="fas fa-key me-2"></i> Zmień hasło', 'url' => ['/user/change-password'], 'encode' => false],
-                        '<div class="dropdown-divider"></div>',
-                        '<li class="dropdown-item">' 
-                            . Html::beginForm(['/site/logout'], 'post')
-                            . Html::submitButton(
-                                '<i class="fas fa-sign-out-alt me-2"></i> Wyloguj się',
-                                ['class' => 'btn btn-link p-0 text-start w-100 text-decoration-none']
-                            )
-                            . Html::endForm()
-                            . '</li>',
-                    ],
-                ]
-        ]
+        'items' => $userMenuItems,
     ]);
+    
+    // Ukryty formularz wylogowania
+    if (!Yii::$app->user->isGuest) {
+        echo Html::beginForm(['/site/logout'], 'post', ['id' => 'logout-form', 'style' => 'display:none;']);
+        echo Html::endForm();
+    }
+    
     NavBar::end();
     ?>
 </header>
