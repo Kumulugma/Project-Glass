@@ -41,6 +41,16 @@ abstract class AbstractFetcher
     abstract public function validateConfig();
     
     /**
+     * Zwraca unikalny identyfikator fetchera
+     * 
+     * @return string
+     */
+    public static function getIdentifier()
+    {
+        return basename(str_replace('\\', '/', static::class));
+    }
+    
+    /**
      * Zwraca definicję pól konfiguracyjnych dla formularza
      * 
      * @return array

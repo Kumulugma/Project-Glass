@@ -6,9 +6,11 @@ use Yii;
 use app\models\Task;
 use app\models\TaskExecution;
 use app\models\NotificationQueue;
+use app\models\FetchResult;
 
 /**
  * TaskRunner - główny komponent uruchamiający taski
+ * ZAKTUALIZOWANY: używa ComponentRegistry i zapisuje wyniki do fetch_results
  */
 class TaskRunner
 {
@@ -80,22 +82,26 @@ class TaskRunner
     {
         $this->execution->setStage('fetch');
         
-        // Jeśli nie ma fetchera, zwróć puste dane
-        if (!$this->task->fetcher_class) {
-            $fetcherClass = '\\app\\components\\fetchers\\EmptyFetcher';
-        } else {
-            $fetcherClass = '\\app\\components\\fetchers\\' . $this->task->fetcher_class;
+        // Pobierz fetcher przez ComponentRegistry
+        $fetcherClass = $this->task->fetcher_class ?: 'EmptyFetcher';
+        $fetcher = ComponentRegistry::getFetcher($fetcherClass, $this->task);
+        
+        if (!$fetcher) {
+            throw new \Exception("Fetcher not found or failed to instantiate: {$fetcherClass}");
         }
         
-        if (!class_exists($fetcherClass)) {
-            throw new \Exception("Fetcher class not found: {$fetcherClass}");
-        }
-        
-        $fetcher = new $fetcherClass($this->task);
         $rawData = $fetcher->fetch();
         
-        // Zapisz surowe dane
+        // Zapisz surowe dane w execution
         $this->execution->saveRawData($rawData);
+        
+        // NOWE: Zapisz wynik fetch do tabeli fetch_results
+        FetchResult::create(
+            $this->task->id,
+            $this->execution->id,
+            $fetcherClass,
+            $rawData
+        );
         
         return $rawData;
     }
@@ -107,13 +113,13 @@ class TaskRunner
     {
         $this->execution->setStage('parse');
         
-        $parserClass = '\\app\\components\\parsers\\' . $this->task->parser_class;
+        // Pobierz parser przez ComponentRegistry
+        $parser = ComponentRegistry::getParser($this->task->parser_class, $this->task, $this->execution);
         
-        if (!class_exists($parserClass)) {
-            throw new \Exception("Parser class not found: {$parserClass}");
+        if (!$parser) {
+            throw new \Exception("Parser not found or failed to instantiate: {$this->task->parser_class}");
         }
         
-        $parser = new $parserClass($this->task, $this->execution);
         $parsedData = $parser->parse($rawData);
         
         // Zapisz przetworzone dane
@@ -132,8 +138,7 @@ class TaskRunner
     {
         $this->execution->setStage('evaluate');
         
-        $parserClass = '\\app\\components\\parsers\\' . $this->task->parser_class;
-        $parser = new $parserClass($this->task, $this->execution);
+        $parser = ComponentRegistry::getParser($this->task->parser_class, $this->task, $this->execution);
         
         $notifications = $parser->evaluate($parsedData);
         

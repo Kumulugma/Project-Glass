@@ -82,6 +82,16 @@ abstract class AbstractParser
     abstract public function validateConfig();
     
     /**
+     * Zwraca unikalny identyfikator parsera
+     * 
+     * @return string
+     */
+    public static function getIdentifier()
+    {
+        return basename(str_replace('\\', '/', static::class));
+    }
+    
+    /**
      * Zwraca definicję pól konfiguracyjnych dla formularza
      * 
      * @return array
@@ -119,6 +129,16 @@ abstract class AbstractParser
     public static function getDefaultFetcherClass()
     {
         return 'EmptyFetcher';
+    }
+    
+    /**
+     * Zwraca listę kompatybilnych channeli
+     * 
+     * @return array Lista identyfikatorów channeli
+     */
+    public static function getCompatibleChannels()
+    {
+        return ['email', 'sms', 'push'];
     }
     
     /**

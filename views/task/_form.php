@@ -4,10 +4,12 @@
 /** @var app\models\Task $model */
 /** @var yii\widgets\ActiveForm $form */
 /** @var array $parsers */
+/** @var array $fetchers */
+/** @var array $channels */
 
 use yii\helpers\Html;
-use yii\widgets\ActiveForm;
 use yii\helpers\ArrayHelper;
+use yii\widgets\ActiveForm;
 
 ?>
 
@@ -23,19 +25,53 @@ use yii\helpers\ArrayHelper;
             
             <?= $form->field($model, 'name')->textInput([
                 'maxlength' => true,
-                'placeholder' => 'np. Opłata za prąd',
+                'placeholder' => 'np. Przypomnienie o opłacie za prąd',
                 'autofocus' => true,
             ]) ?>
 
             <div class="row">
                 <div class="col-md-6">
-                    <?= $form->field($model, 'category')->dropDownList([
-                        '' => '-- Wybierz kategorię --',
-                        'rachunki' => '💰 Rachunki',
-                        'zakupy' => '🛒 Zakupy',
-                        'rośliny' => '🌱 Rośliny',
-                        'monitoring' => '📊 Monitoring',
-                    ], ['prompt' => '']) ?>
+                    <?= $form->field($model, 'parser_class')->dropDownList(
+                        ArrayHelper::map($parsers, 'class', 'name'),
+                        [
+                            'prompt' => '-- Wybierz parser --',
+                            'id' => 'parser-select',
+                        ]
+                    )->label('Parser') ?>
+                    <p class="small text-muted mt-n2 mb-3" id="parser-description"></p>
+                </div>
+                
+                <div class="col-md-6">
+                    <?= $form->field($model, 'fetcher_class')->dropDownList(
+                        ArrayHelper::map($fetchers, 'class', 'name'),
+                        [
+                            'prompt' => '-- Wybierz fetcher --',
+                            'id' => 'fetcher-select',
+                        ]
+                    )->label('Fetcher') ?>
+                    <p class="small text-muted mt-n2 mb-3" id="fetcher-description"></p>
+                </div>
+            </div>
+
+            <!-- Konfiguracja JSON -->
+            <?= $form->field($model, 'config')->textarea([
+                'rows' => 12,
+                'placeholder' => '{
+  "amount": 150.00,
+  "currency": "PLN",
+  "due_date": "2025-02-15",
+  "notify_before_days": 3,
+  "reminder_message": "Przypomnienie: {{task_name}} - {{amount}} {{currency}}"
+}',
+                'class' => 'form-control font-monospace',
+                'id' => 'task-config',
+            ])->hint('Konfiguracja JSON dla parsera. Dostępne pola zależą od wybranego parsera.') ?>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <?= $form->field($model, 'schedule')->textInput([
+                        'placeholder' => 'Cron expression (np. 0 9 * * *) lub "manual"',
+                    ])->hint('Przykłady: "0 9 * * *" (codziennie 9:00), "0 0 1 * *" (1. dnia miesiąca), "manual" (tylko ręcznie)') ?>
                 </div>
                 
                 <div class="col-md-6">
@@ -48,113 +84,82 @@ use yii\helpers\ArrayHelper;
                 </div>
             </div>
 
-            <div class="row">
-                <div class="col-md-6">
-                    <?= $form->field($model, 'parser_class')->dropDownList(
-                        ArrayHelper::map($parsers, 'class', 'name'),
-                        [
-                            'prompt' => '-- Wybierz typ zadania --',
-                            'id' => 'parser-select',
-                        ]
-                    )->label('Typ zadania (Parser)') ?>
-                </div>
-                
-                <div class="col-md-6">
-                    <?= $form->field($model, 'fetcher_class')->dropDownList([
-                        'EmptyFetcher' => 'Brak (tylko przypomnienia)',
-                        'UrlFetcher' => 'HTTP/HTTPS Request',
-                    ])->label('Źródło danych (Fetcher)') ?>
-                </div>
-            </div>
-
-            <?= $form->field($model, 'schedule')->textInput([
-                'placeholder' => 'Cron expression (np. "0 9 * * *") lub "manual"',
-            ])->hint('Przykłady: "0 9 * * *" (codziennie o 9:00), "0 12 1 * *" (1-go dnia miesiąca o 12:00), "manual" (tylko ręcznie)') ?>
-
-            <div class="row">
-                <div class="col-md-4">
-                    <?= $form->field($model, 'amount')->textInput([
-                        'type' => 'number',
-                        'step' => '0.01',
-                        'placeholder' => '0.00',
-                    ]) ?>
-                </div>
-                
-                <div class="col-md-4">
-                    <?= $form->field($model, 'currency')->textInput([
-                        'maxlength' => 3,
-                        'value' => $model->currency ?: 'PLN',
-                    ]) ?>
-                </div>
-                
-                <div class="col-md-4">
-                    <?= $form->field($model, 'due_date')->input('date') ?>
-                </div>
-            </div>
-
-            <?= $form->field($model, 'config')->textarea([
-                'rows' => 6,
-                'placeholder' => 'JSON z konfiguracją (opcjonalnie)',
-                'class' => 'form-control font-monospace',
-            ])->hint('Konfiguracja w formacie JSON, np: {"url": "https://example.com", "timeout": 30}') ?>
-
         </div>
 
         <div class="col-md-4">
-            
-            <div class="card">
+            <!-- Kanały powiadomień -->
+            <div class="card mb-3">
                 <div class="card-header">
-                    <h6 class="mb-0">🔔 Powiadomienia</h6>
+                    <h6 class="mb-0">Kanały powiadomień</h6>
                 </div>
                 <div class="card-body">
+                    <?php
+                    // Przygotuj wybrane channele
+                    $selectedChannels = [];
+                    if ($model->notification_channels) {
+                        $decoded = json_decode($model->notification_channels, true);
+                        if (is_array($decoded)) {
+                            $selectedChannels = $decoded;
+                        }
+                    }
                     
-                    <?= $form->field($model, 'notification_channels')->textarea([
-                        'rows' => 3,
-                        'placeholder' => '["email", "sms", "telegram"]',
-                        'class' => 'form-control font-monospace small',
-                    ])->label('Kanały powiadomień')->hint('JSON array, np: ["email", "sms"]') ?>
+                    // Wyświetl checkboxy dla każdego channela
+                    foreach ($channels as $channel):
+                        $checked = in_array($channel['identifier'], $selectedChannels);
+                    ?>
+                        <div class="form-check mb-2">
+                            <?= Html::checkbox(
+                                'channels[]',
+                                $checked,
+                                [
+                                    'value' => $channel['identifier'],
+                                    'class' => 'form-check-input',
+                                    'id' => 'channel-' . $channel['identifier'],
+                                ]
+                            ) ?>
+                            <label class="form-check-label" for="channel-<?= $channel['identifier'] ?>">
+                                <strong><?= Html::encode($channel['name']) ?></strong>
+                                <br>
+                                <small class="text-muted"><?= Html::encode($channel['description']) ?></small>
+                            </label>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
 
+            <!-- Odbiorcy -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Odbiorcy</h6>
+                </div>
+                <div class="card-body">
                     <?= $form->field($model, 'notification_recipients')->textarea([
-                        'rows' => 3,
-                        'placeholder' => '{"email": ["user@example.com"]}',
-                        'class' => 'form-control font-monospace small',
-                    ])->label('Odbiorcy')->hint('JSON object z odbiorcami dla każdego kanału') ?>
+                        'rows' => 4,
+                        'placeholder' => '["email@example.com", "+48123456789"]',
+                        'class' => 'form-control form-control-sm font-monospace',
+                        'id' => 'task-notification_recipients',
+                    ])->label(false)->hint('JSON array z odbiorcami (email, telefon, itp.)') ?>
+                </div>
+            </div>
 
+            <!-- Cooldown -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Cooldown</h6>
+                </div>
+                <div class="card-body">
                     <?= $form->field($model, 'cooldown_minutes')->textInput([
                         'type' => 'number',
-                        'value' => $model->cooldown_minutes ?: 60,
-                    ])->hint('Czas między powiadomieniami (w minutach)') ?>
-
+                        'min' => 1,
+                        'placeholder' => '60',
+                        'class' => 'form-control form-control-sm',
+                    ])->label(false)->hint('Minuty między kolejnymi powiadomieniami') ?>
                 </div>
             </div>
-
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h6 class="mb-0">ℹ️ Pomoc</h6>
-                </div>
-                <div class="card-body small">
-                    <p><strong>Parsery:</strong></p>
-                    <ul class="mb-2">
-                        <li><strong>ReminderParser</strong> - przypomnienia o terminach</li>
-                        <li><strong>AggregateParser</strong> - raporty zbiorcze (suma rachunków)</li>
-                        <li><strong>PlantReminderParser</strong> - pielęgnacja roślin</li>
-                        <li><strong>UrlHealthCheckParser</strong> - monitoring stron</li>
-                    </ul>
-                    
-                    <p><strong>Harmonogram (cron):</strong></p>
-                    <ul class="mb-0">
-                        <li><code>0 9 * * *</code> - codziennie o 9:00</li>
-                        <li><code>0 12 1 * *</code> - 1-go każdego miesiąca o 12:00</li>
-                        <li><code>0 8 * * 1</code> - w poniedziałki o 8:00</li>
-                        <li><code>manual</code> - tylko ręcznie</li>
-                    </ul>
-                </div>
-            </div>
-
         </div>
     </div>
 
-    <div class="form-group mt-4">
+    <div class="form-group">
         <?= Html::submitButton($model->isNewRecord ? '✓ Utwórz zadanie' : '✓ Zapisz zmiany', [
             'class' => 'btn btn-success btn-lg'
         ]) ?>
@@ -166,29 +171,58 @@ use yii\helpers\ArrayHelper;
 </div>
 
 <?php
+// Dane parserów i fetcherów jako JSON
+$parsersData = json_encode($parsers);
+$fetchersData = json_encode($fetchers);
+
 $this->registerJs(<<<JS
+const parsers = $parsersData;
+const fetchers = $fetchersData;
+
 // Automatyczne ustawienie fetchera na podstawie parsera
 $('#parser-select').on('change', function() {
-    var parser = $(this).val();
-    var fetcherSelect = $('#task-fetcher_class');
+    const parserClass = $(this).val();
+    const parser = parsers.find(p => p.class === parserClass);
     
-    // Mapping parser -> domyślny fetcher
-    var defaults = {
-        'ReminderParser': 'EmptyFetcher',
-        'AggregateParser': 'EmptyFetcher',
-        'PlantReminderParser': 'EmptyFetcher',
-        'UrlHealthCheckParser': 'UrlFetcher',
-    };
-    
-    if (defaults[parser]) {
-        fetcherSelect.val(defaults[parser]);
+    if (parser) {
+        // Pokaż opis
+        $('#parser-description').text(parser.description);
+        
+        // Ustaw domyślny fetcher
+        if (parser.required_fetcher) {
+            $('#fetcher-select').val(parser.required_fetcher);
+            $('#fetcher-select').trigger('change');
+        }
+    } else {
+        $('#parser-description').text('');
     }
 });
 
-// Walidacja JSON
+// Pokaż opis fetchera
+$('#fetcher-select').on('change', function() {
+    const fetcherClass = $(this).val();
+    const fetcher = fetchers.find(f => f.class === fetcherClass);
+    
+    if (fetcher) {
+        $('#fetcher-description').text(fetcher.description);
+    } else {
+        $('#fetcher-description').text('');
+    }
+});
+
+// Trigger na start żeby pokazać opisy
+if ($('#parser-select').val()) {
+    $('#parser-select').trigger('change');
+}
+if ($('#fetcher-select').val()) {
+    $('#fetcher-select').trigger('change');
+}
+
+// Walidacja JSON przed submitem
 $('form').on('submit', function(e) {
-    var configField = $('#task-config');
-    var config = configField.val().trim();
+    // Walidacja config
+    const configField = $('#task-config');
+    const config = configField.val().trim();
     
     if (config && config !== '') {
         try {
@@ -201,24 +235,9 @@ $('form').on('submit', function(e) {
         }
     }
     
-    // Walidacja notification_channels
-    var channelsField = $('#task-notification_channels');
-    var channels = channelsField.val().trim();
-    
-    if (channels && channels !== '') {
-        try {
-            JSON.parse(channels);
-        } catch (err) {
-            alert('Błąd w polu Kanały powiadomień: nieprawidłowy JSON\\n' + err.message);
-            channelsField.focus();
-            e.preventDefault();
-            return false;
-        }
-    }
-    
     // Walidacja notification_recipients
-    var recipientsField = $('#task-notification_recipients');
-    var recipients = recipientsField.val().trim();
+    const recipientsField = $('#task-notification_recipients');
+    const recipients = recipientsField.val().trim();
     
     if (recipients && recipients !== '') {
         try {
@@ -230,6 +249,20 @@ $('form').on('submit', function(e) {
             return false;
         }
     }
+    
+    // Przekształć checkboxy channeli na JSON array
+    const selectedChannels = [];
+    $('input[name="channels[]"]:checked').each(function() {
+        selectedChannels.push($(this).val());
+    });
+    
+    // Usuń stare pole i dodaj nowe jako hidden input
+    $('input[name="Task[notification_channels]"]').remove();
+    $('<input>')
+        .attr('type', 'hidden')
+        .attr('name', 'Task[notification_channels]')
+        .val(JSON.stringify(selectedChannels))
+        .appendTo($(this));
 });
 JS
 );

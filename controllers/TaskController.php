@@ -4,16 +4,16 @@ namespace app\controllers;
 
 use Yii;
 use yii\web\Controller;
-use yii\web\NotFoundHttpException;
-use yii\filters\VerbFilter;
+use yii\filters\AccessControl;
 use yii\data\ActiveDataProvider;
 use app\models\Task;
 use app\models\TaskExecution;
 use app\models\TaskHistory;
 use app\components\TaskRunner;
+use app\components\ComponentRegistry;
 
 /**
- * TaskController dla web interface
+ * TaskController - ZAKTUALIZOWANY bez kategorii, z ComponentRegistry
  */
 class TaskController extends Controller
 {
@@ -23,58 +23,35 @@ class TaskController extends Controller
     public function behaviors()
     {
         return [
-            'verbs' => [
-                'class' => VerbFilter::class,
-                'actions' => [
-                    'delete' => ['POST'],
-                    'run' => ['POST'],
-                    'complete' => ['POST'],
-                    'pause' => ['POST'],
-                    'resume' => ['POST'],
+            'access' => [
+                'class' => AccessControl::class,
+                'rules' => [
+                    [
+                        'allow' => true,
+                        'roles' => ['@'],
+                    ],
                 ],
             ],
         ];
     }
-    
+
     /**
-     * Lista tasków
+     * Lista zadań - USUNIĘTO filtrowanie po category
      */
-    public function actionIndex($category = null, $status = null)
+    public function actionIndex()
     {
-        $query = Task::find();
-        
-        if ($category) {
-            $query->andWhere(['category' => $category]);
-        }
-        
-        if ($status) {
-            $query->andWhere(['status' => $status]);
-        }
-        
         $dataProvider = new ActiveDataProvider([
-            'query' => $query->orderBy(['id' => SORT_DESC]),
-            'pagination' => [
-                'pageSize' => 50,
-            ],
+            'query' => Task::find()->orderBy(['created_at' => SORT_DESC]),
+            'pagination' => ['pageSize' => 20],
         ]);
-        
-        // Pobierz kategorie dla filtrowania
-        $categories = Task::find()
-            ->select('category')
-            ->distinct()
-            ->where(['not', ['category' => null]])
-            ->column();
         
         return $this->render('index', [
             'dataProvider' => $dataProvider,
-            'categories' => $categories,
-            'selectedCategory' => $category,
-            'selectedStatus' => $status,
         ]);
     }
     
     /**
-     * Szczegóły taska
+     * Szczegóły zadania
      */
     public function actionView($id)
     {
@@ -104,75 +81,69 @@ class TaskController extends Controller
     }
     
     /**
-     * Tworzenie nowego taska
+     * Tworzenie nowego zadania - UŻYWA ComponentRegistry
      */
-    public function actionCreate($parser = null, $category = null)
+    public function actionCreate()
     {
         $model = new Task();
         
-        // Ustaw domyślne wartości z parametrów
-        if ($parser) {
-            $model->parser_class = $parser;
-            
-            // Ustaw domyślny fetcher
-            $parserClass = '\\app\\components\\parsers\\' . $parser;
-            if (class_exists($parserClass)) {
-                $model->fetcher_class = $parserClass::getDefaultFetcherClass();
-            }
-        }
-        
-        if ($category) {
-            $model->category = $category;
-        }
+        // Pobierz dostępne komponenty przez ComponentRegistry
+        $parsers = ComponentRegistry::getAvailableParsers();
+        $fetchers = ComponentRegistry::getAvailableFetchers();
+        $channels = ComponentRegistry::getAvailableChannels();
         
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Task utworzony pomyślnie.');
+            Yii::$app->session->setFlash('success', 'Zadanie utworzone pomyślnie.');
             return $this->redirect(['view', 'id' => $model->id]);
         }
-        
-        // Lista dostępnych parserów
-        $parsers = $this->getAvailableParsers();
         
         return $this->render('create', [
             'model' => $model,
             'parsers' => $parsers,
+            'fetchers' => $fetchers,
+            'channels' => $channels,
         ]);
     }
     
     /**
-     * Edycja taska
+     * Edycja zadania - UŻYWA ComponentRegistry
      */
     public function actionUpdate($id)
     {
         $model = $this->findModel($id);
         
+        // Pobierz dostępne komponenty
+        $parsers = ComponentRegistry::getAvailableParsers();
+        $fetchers = ComponentRegistry::getAvailableFetchers();
+        $channels = ComponentRegistry::getAvailableChannels();
+        
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Task zaktualizowany pomyślnie.');
+            Yii::$app->session->setFlash('success', 'Zadanie zaktualizowane pomyślnie.');
             return $this->redirect(['view', 'id' => $model->id]);
         }
-        
-        $parsers = $this->getAvailableParsers();
         
         return $this->render('update', [
             'model' => $model,
             'parsers' => $parsers,
+            'fetchers' => $fetchers,
+            'channels' => $channels,
         ]);
     }
     
     /**
-     * Usuń task
+     * Usuń zadanie
      */
     public function actionDelete($id)
     {
         $model = $this->findModel($id);
         $model->delete();
         
-        Yii::$app->session->setFlash('success', 'Task usunięty.');
+        Yii::$app->session->setFlash('success', 'Zadanie usunięte.');
         return $this->redirect(['index']);
     }
     
     /**
-     * Ręczne uruchomienie taska
+     * Ręczne uruchomienie zadania
      */
     public function actionRun($id)
     {
@@ -183,16 +154,15 @@ class TaskController extends Controller
             $execution = $runner->run();
             
             if ($execution->isSuccess()) {
-                Yii::$app->session->setFlash('success', 'Task wykonany pomyślnie!');
+                Yii::$app->session->setFlash('success', 'Zadanie wykonane pomyślnie!');
             } else {
-                Yii::$app->session->setFlash('error', 'Błąd wykonania: ' . $execution->error_message);
+                Yii::$app->session->setFlash('warning', 'Zadanie zakończone z błędem: ' . $execution->error_message);
             }
-            
         } catch (\Exception $e) {
-            Yii::$app->session->setFlash('error', 'Wyjątek: ' . $e->getMessage());
+            Yii::$app->session->setFlash('error', 'Błąd wykonania: ' . $e->getMessage());
         }
         
-        return $this->redirect(['view', 'id' => $id]);
+        return $this->redirect(['view', 'id' => $model->id]);
     }
     
     /**
@@ -201,74 +171,70 @@ class TaskController extends Controller
     public function actionComplete($id)
     {
         $model = $this->findModel($id);
-        $model->markAsCompleted();
         
-        Yii::$app->session->setFlash('success', 'Task oznaczony jako wykonany.');
-        return $this->redirect(['view', 'id' => $id]);
+        if ($model->markAsCompleted()) {
+            TaskHistory::recordChange($model, 'completed');
+            Yii::$app->session->setFlash('success', 'Zadanie oznaczone jako wykonane.');
+        }
+        
+        return $this->redirect(['view', 'id' => $model->id]);
     }
     
     /**
-     * Anuluj wykonanie
+     * Cofnij oznaczenie jako wykonane
      */
     public function actionUncomplete($id)
     {
         $model = $this->findModel($id);
-        $model->markAsUncompleted();
         
-        Yii::$app->session->setFlash('success', 'Przywrócono status aktywny.');
-        return $this->redirect(['view', 'id' => $id]);
+        if ($model->markAsUncompleted()) {
+            Yii::$app->session->setFlash('success', 'Zadanie ponownie aktywne.');
+        }
+        
+        return $this->redirect(['view', 'id' => $model->id]);
     }
     
     /**
-     * Wstrzymaj task
+     * Wstrzymaj zadanie
      */
     public function actionPause($id)
     {
         $model = $this->findModel($id);
         $model->status = 'paused';
-        $model->save();
         
-        Yii::$app->session->setFlash('success', 'Task wstrzymany.');
-        return $this->redirect(['view', 'id' => $id]);
+        if ($model->save()) {
+            TaskHistory::recordChange($model, 'paused');
+            Yii::$app->session->setFlash('success', 'Zadanie wstrzymane.');
+        }
+        
+        return $this->redirect(['view', 'id' => $model->id]);
     }
     
     /**
-     * Wznów task
+     * Wznów zadanie
      */
     public function actionResume($id)
     {
         $model = $this->findModel($id);
         $model->status = 'active';
-        $model->save();
         
-        Yii::$app->session->setFlash('success', 'Task wznowiony.');
-        return $this->redirect(['view', 'id' => $id]);
+        if ($model->save()) {
+            TaskHistory::recordChange($model, 'resumed');
+            Yii::$app->session->setFlash('success', 'Zadanie wznowione.');
+        }
+        
+        return $this->redirect(['view', 'id' => $model->id]);
     }
     
     /**
-     * Znajdź model
+     * Znajduje model
      */
-    protected function findModel($id)
+    private function findModel($id)
     {
         if (($model = Task::findOne($id)) !== null) {
             return $model;
         }
         
-        throw new NotFoundHttpException('Task nie znaleziony.');
-    }
-    
-    /**
-     * Zwraca listę dostępnych parserów
-     */
-    private function getAvailableParsers()
-    {
-        return [
-            'UrlHealthCheckParser' => 'Sprawdzenie dostępności URL',
-            'JsonEndpointParser' => 'JSON API Endpoint',
-            'ReminderParser' => 'Przypomnienie',
-            'ShoppingItemParser' => 'Lista zakupów',
-            'PlantReminderParser' => 'Kalendarz roślin',
-            'AggregateParser' => 'Raport agregujący',
-        ];
+        throw new \yii\web\NotFoundHttpException('Zadanie nie zostało znalezione.');
     }
 }

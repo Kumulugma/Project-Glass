@@ -3,6 +3,8 @@
 /** @var yii\web\View $this */
 /** @var app\models\Task $model */
 /** @var array $parsers */
+/** @var array $fetchers */
+/** @var array $channels */
 
 use yii\helpers\Html;
 
@@ -19,6 +21,8 @@ $this->params['breadcrumbs'][] = 'Edycja';
     <?= $this->render('_form', [
         'model' => $model,
         'parsers' => $parsers,
+        'fetchers' => $fetchers,
+        'channels' => $channels,
     ]) ?>
 
 </div>

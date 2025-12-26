@@ -4,6 +4,8 @@
 /** @var string $content */
 
 use app\assets\AppAsset;
+use app\widgets\Alert;
+use yii\bootstrap5\Breadcrumbs;
 use yii\bootstrap5\Html;
 use yii\bootstrap5\Nav;
 use yii\bootstrap5\NavBar;
@@ -27,7 +29,7 @@ $this->registerLinkTag(['rel' => 'stylesheet', 'href' => 'https://cdnjs.cloudfla
 ?>
 <?php $this->beginPage() ?>
 <!DOCTYPE html>
-<html lang="pl" class="h-100">
+<html lang="<?= Yii::$app->language ?>" class="h-100">
 <head>
     <title><?= Html::encode($this->title) ?></title>
     <?php $this->head() ?>
@@ -370,42 +372,43 @@ $this->registerLinkTag(['rel' => 'stylesheet', 'href' => 'https://cdnjs.cloudfla
     ]);
     
     if (!Yii::$app->user->isGuest) {
-        echo Nav::widget([
-            'options' => ['class' => 'navbar-nav me-auto'],
+    echo Nav::widget([
+    'options' => ['class' => 'navbar-nav me-auto'],
+    'items' => [
+        ['label' => '<i class="fas fa-home me-1"></i> Dashboard', 'url' => ['/dashboard/index'], 'encode' => false],
+        ['label' => '<i class="fas fa-mobile-alt me-1"></i> Mobilny', 'url' => ['/dashboard/mobile'], 'encode' => false],
+        [
+            'label' => '<i class="fas fa-tasks me-1"></i> Zadania',
+            'encode' => false,
             'items' => [
-                ['label' => '<i class="fas fa-home me-1"></i> Dashboard', 'url' => ['/dashboard/index'], 'encode' => false],
-                ['label' => '<i class="fas fa-mobile-alt me-1"></i> Mobilny', 'url' => ['/dashboard/mobile'], 'encode' => false],
-                [
-                    'label' => '<i class="fas fa-tasks me-1"></i> Zadania',
-                    'encode' => false,
-                    'items' => [
-                        ['label' => '<i class="fas fa-list me-2"></i> Wszystkie zadania', 'url' => ['/task/index'], 'encode' => false],
-                        ['label' => '<i class="fas fa-plus-circle me-2"></i> Nowe zadanie', 'url' => ['/task/create'], 'encode' => false],
-                        '<div class="dropdown-divider"></div>',
-                        ['label' => '<i class="fas fa-file-invoice-dollar me-2"></i> Rachunki', 'url' => ['/task/index', 'category' => 'rachunki'], 'encode' => false],
-                        ['label' => '<i class="fas fa-shopping-cart me-2"></i> Zakupy', 'url' => ['/task/index', 'category' => 'zakupy'], 'encode' => false],
-                        ['label' => '<i class="fas fa-leaf me-2"></i> Rośliny', 'url' => ['/task/index', 'category' => 'rośliny'], 'encode' => false],
-                        ['label' => '<i class="fas fa-chart-line me-2"></i> Monitoring', 'url' => ['/task/index', 'category' => 'monitoring'], 'encode' => false],
-                    ],
-                ],
-                [
-                    'label' => '<i class="fas fa-cog me-1"></i> System',
-                    'encode' => false,
-                    'items' => [
-                        ['label' => '<i class="fas fa-bell me-2"></i> Powiadomienia', 'url' => ['/notification/index'], 'encode' => false],
-                        ['label' => '<i class="fas fa-history me-2"></i> Historia wykonań', 'url' => ['/execution/index'], 'encode' => false],
-                        ['label' => '<i class="fas fa-chart-bar me-2"></i> Statystyki', 'url' => ['/stats/index'], 'encode' => false],
-                        '<div class="dropdown-divider"></div>',
-                        ['label' => '<i class="fas fa-user-shield me-2"></i> Logi użytkowników', 'url' => ['/user/logs'], 'encode' => false, 'visible' => Yii::$app->user->identity->isAdmin],
-                        ['label' => '<i class="fas fa-users me-2"></i> Zarządzaj użytkownikami', 'url' => ['/user/index'], 'encode' => false, 'visible' => Yii::$app->user->identity->isAdmin],
-                    ],
-                ],
-            ]
-        ]);
+                ['label' => '<i class="fas fa-list me-2"></i> Wszystkie zadania', 'url' => ['/task/index'], 'encode' => false],
+                ['label' => '<i class="fas fa-plus-circle me-2"></i> Nowe zadanie', 'url' => ['/task/create'], 'encode' => false],
+                '<div class="dropdown-divider"></div>',
+                // NOWE - Wyniki fetcherów
+                ['label' => '<i class="fas fa-database me-2"></i> Wyniki', 'url' => ['/results/index'], 'encode' => false],
+            ],
+        ],
+        [
+            'label' => '<i class="fas fa-cog me-1"></i> System',
+            'encode' => false,
+            'items' => [
+                ['label' => '<i class="fas fa-bell me-2"></i> Powiadomienia', 'url' => ['/notification/index'], 'encode' => false],
+                ['label' => '<i class="fas fa-history me-2"></i> Historia wykonań', 'url' => ['/execution/index'], 'encode' => false],
+                ['label' => '<i class="fas fa-chart-bar me-2"></i> Statystyki', 'url' => ['/stats/index'], 'encode' => false],
+                '<div class="dropdown-divider"></div>',
+                // NOWE - Ustawienia channeli
+                ['label' => '<i class="fas fa-sliders-h me-2"></i> Ustawienia channeli', 'url' => ['/settings/index'], 'encode' => false],
+                '<div class="dropdown-divider"></div>',
+                ['label' => '<i class="fas fa-user-shield me-2"></i> Logi użytkowników', 'url' => ['/user/logs'], 'encode' => false, 'visible' => Yii::$app->user->identity->isAdmin],
+                ['label' => '<i class="fas fa-users me-2"></i> Zarządzaj użytkownikami', 'url' => ['/user/index'], 'encode' => false, 'visible' => Yii::$app->user->identity->isAdmin],
+            ],
+        ],
+    ]
+]);
     }
-    
+            
     $userMenuItems = [];
-    
+            
     if (Yii::$app->user->isGuest) {
         $userMenuItems[] = ['label' => '<i class="fas fa-sign-in-alt me-1"></i> Zaloguj się', 'url' => ['/site/login'], 'encode' => false];
     } else {
@@ -426,7 +429,7 @@ $this->registerLinkTag(['rel' => 'stylesheet', 'href' => 'https://cdnjs.cloudfla
             ],
         ];
     }
-    
+            
     echo Nav::widget([
         'options' => ['class' => 'navbar-nav ms-auto'],
         'items' => $userMenuItems,

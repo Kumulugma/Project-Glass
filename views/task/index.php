@@ -2,13 +2,12 @@
 
 /** @var yii\web\View $this */
 /** @var yii\data\ActiveDataProvider $dataProvider */
-/** @var string $category */
 
 use yii\helpers\Html;
 use yii\grid\GridView;
 use yii\grid\ActionColumn;
 
-$this->title = 'Zadania' . ($category ? ' - ' . ucfirst($category) : '');
+$this->title = 'Zadania';
 $this->params['breadcrumbs'][] = $this->title;
 ?>
 
@@ -16,16 +15,7 @@ $this->params['breadcrumbs'][] = $this->title;
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1><?= Html::encode($this->title) ?></h1>
-        <?= Html::a('➕ Nowe zadanie', ['create'], ['class' => 'btn btn-success']) ?>
-    </div>
-
-    <!-- Filtry kategorii -->
-    <div class="btn-group mb-3" role="group">
-        <?= Html::a('Wszystkie', ['index'], ['class' => 'btn ' . (empty($category) ? 'btn-primary' : 'btn-outline-primary')]) ?>
-        <?= Html::a('💰 Rachunki', ['index', 'category' => 'rachunki'], ['class' => 'btn ' . ($category === 'rachunki' ? 'btn-warning' : 'btn-outline-warning')]) ?>
-        <?= Html::a('🛒 Zakupy', ['index', 'category' => 'zakupy'], ['class' => 'btn ' . ($category === 'zakupy' ? 'btn-info' : 'btn-outline-info')]) ?>
-        <?= Html::a('🌱 Rośliny', ['index', 'category' => 'rośliny'], ['class' => 'btn ' . ($category === 'rośliny' ? 'btn-success' : 'btn-outline-success')]) ?>
-        <?= Html::a('📊 Monitoring', ['index', 'category' => 'monitoring'], ['class' => 'btn ' . ($category === 'monitoring' ? 'btn-secondary' : 'btn-outline-secondary')]) ?>
+        <?= Html::a('➕ Nowe zadanie', ['create'], ['class' => 'btn btn-success btn-lg']) ?>
     </div>
 
     <?= GridView::widget([
@@ -34,108 +24,121 @@ $this->params['breadcrumbs'][] = $this->title;
         'columns' => [
             [
                 'attribute' => 'id',
-                'headerOptions' => ['style' => 'width: 50px'],
+                'headerOptions' => ['style' => 'width: 60px'],
             ],
             [
                 'attribute' => 'name',
                 'format' => 'raw',
                 'value' => function($model) {
-                    return Html::a(Html::encode($model->name), ['view', 'id' => $model->id]);
+                    return Html::a(Html::encode($model->name), ['view', 'id' => $model->id], [
+                        'class' => 'fw-bold text-decoration-none'
+                    ]);
                 },
             ],
             [
-                'attribute' => 'category',
+                'label' => 'Komponenty',
                 'format' => 'raw',
                 'value' => function($model) {
-                    if (!$model->category) return '-';
+                    $badges = [];
                     
-                    $badges = [
-                        'rachunki' => 'warning',
-                        'zakupy' => 'info',
-                        'rośliny' => 'success',
-                        'monitoring' => 'secondary',
-                    ];
+                    // Parser
+                    $badges[] = '<span class="badge bg-primary" title="Parser">' 
+                        . Html::encode($model->parser_class) 
+                        . '</span>';
                     
-                    $class = $badges[$model->category] ?? 'secondary';
-                    return '<span class="badge bg-' . $class . '">' . Html::encode($model->category) . '</span>';
+                    // Fetcher
+                    if ($model->fetcher_class) {
+                        $badges[] = '<span class="badge bg-info" title="Fetcher">' 
+                            . Html::encode($model->fetcher_class) 
+                            . '</span>';
+                    }
+                    
+                    // Channels
+                    $channels = json_decode($model->notification_channels, true) ?: [];
+                    foreach ($channels as $channel) {
+                        $badges[] = '<span class="badge bg-success" title="Channel">' 
+                            . Html::encode($channel) 
+                            . '</span>';
+                    }
+                    
+                    return implode(' ', $badges);
                 },
-                'headerOptions' => ['style' => 'width: 120px'],
+                'headerOptions' => ['style' => 'min-width: 300px'],
             ],
             [
-                'attribute' => 'due_date',
-                'format' => 'date',
+                'attribute' => 'schedule',
+                'format' => 'raw',
                 'value' => function($model) {
-                    return $model->due_date;
+                    if ($model->schedule === 'manual') {
+                        return '<span class="badge bg-secondary">Ręcznie</span>';
+                    }
+                    return '<code class="small">' . Html::encode($model->schedule) . '</code>';
                 },
-                'headerOptions' => ['style' => 'width: 120px'],
-            ],
-            [
-                'attribute' => 'amount',
-                'format' => ['currency', 'PLN'],
-                'headerOptions' => ['style' => 'width: 120px'],
+                'headerOptions' => ['style' => 'width: 150px'],
             ],
             [
                 'attribute' => 'status',
                 'format' => 'raw',
                 'value' => function($model) {
                     $badges = [
-                        'active' => 'success',
-                        'paused' => 'warning',
-                        'completed' => 'info',
-                        'archived' => 'secondary',
+                        'active' => ['class' => 'success', 'icon' => 'check-circle', 'label' => 'Aktywne'],
+                        'paused' => ['class' => 'warning', 'icon' => 'pause-circle', 'label' => 'Wstrzymane'],
+                        'completed' => ['class' => 'info', 'icon' => 'check', 'label' => 'Wykonane'],
+                        'archived' => ['class' => 'secondary', 'icon' => 'archive', 'label' => 'Archiwum'],
                     ];
+                    $badge = $badges[$model->status] ?? ['class' => 'secondary', 'icon' => 'question', 'label' => $model->status];
                     
-                    $labels = [
-                        'active' => 'Aktywne',
-                        'paused' => 'Wstrzymane',
-                        'completed' => 'Wykonane',
-                        'archived' => 'Archiwum',
-                    ];
-                    
-                    $class = $badges[$model->status] ?? 'secondary';
-                    $label = $labels[$model->status] ?? $model->status;
-                    
-                    return '<span class="badge bg-' . $class . '">' . $label . '</span>';
+                    return '<span class="badge bg-' . $badge['class'] . '">'
+                        . '<i class="fas fa-' . $badge['icon'] . ' me-1"></i>'
+                        . $badge['label']
+                        . '</span>';
                 },
-                'headerOptions' => ['style' => 'width: 120px'],
+                'headerOptions' => ['style' => 'width: 130px'],
             ],
             [
-                'attribute' => 'schedule',
+                'attribute' => 'next_run_at',
+                'format' => 'datetime',
                 'value' => function($model) {
-                    return $model->schedule === 'manual' ? 'Ręcznie' : $model->schedule;
+                    if ($model->schedule === 'manual') {
+                        return null;
+                    }
+                    return $model->next_run_at;
                 },
-                'headerOptions' => ['style' => 'width: 150px'],
+                'headerOptions' => ['style' => 'width: 180px'],
             ],
             [
                 'class' => ActionColumn::class,
                 'template' => '{view} {run} {update} {delete}',
                 'buttons' => [
-                    'run' => function ($url, $model) {
-                        return Html::a('▶', ['run', 'id' => $model->id], [
-                            'class' => 'btn btn-sm btn-outline-primary',
-                            'title' => 'Uruchom',
+                    'view' => function($url, $model) {
+                        return Html::a('<i class="fas fa-eye"></i>', ['view', 'id' => $model->id], [
+                            'class' => 'btn btn-sm btn-primary',
+                            'title' => 'Szczegóły',
+                        ]);
+                    },
+                    'run' => function($url, $model) {
+                        if ($model->status !== 'active') {
+                            return '';
+                        }
+                        return Html::a('<i class="fas fa-play"></i>', ['run', 'id' => $model->id], [
+                            'class' => 'btn btn-sm btn-success',
+                            'title' => 'Uruchom teraz',
                             'data-method' => 'post',
-                            'data-confirm' => 'Uruchomić zadanie teraz?',
+                            'data-confirm' => 'Czy na pewno uruchomić to zadanie?',
                         ]);
                     },
-                    'view' => function ($url, $model) {
-                        return Html::a('👁', ['view', 'id' => $model->id], [
-                            'class' => 'btn btn-sm btn-outline-info',
-                            'title' => 'Podgląd',
-                        ]);
-                    },
-                    'update' => function ($url, $model) {
-                        return Html::a('✏', ['update', 'id' => $model->id], [
-                            'class' => 'btn btn-sm btn-outline-warning',
+                    'update' => function($url, $model) {
+                        return Html::a('<i class="fas fa-edit"></i>', ['update', 'id' => $model->id], [
+                            'class' => 'btn btn-sm btn-warning',
                             'title' => 'Edytuj',
                         ]);
                     },
-                    'delete' => function ($url, $model) {
-                        return Html::a('🗑', ['delete', 'id' => $model->id], [
-                            'class' => 'btn btn-sm btn-outline-danger',
+                    'delete' => function($url, $model) {
+                        return Html::a('<i class="fas fa-trash"></i>', ['delete', 'id' => $model->id], [
+                            'class' => 'btn btn-sm btn-danger',
                             'title' => 'Usuń',
                             'data-method' => 'post',
-                            'data-confirm' => 'Na pewno usunąć to zadanie?',
+                            'data-confirm' => 'Czy na pewno usunąć to zadanie?',
                         ]);
                     },
                 ],
@@ -143,5 +146,16 @@ $this->params['breadcrumbs'][] = $this->title;
             ],
         ],
     ]); ?>
+
+    <!-- Info box -->
+    <div class="alert alert-info mt-4">
+        <h6><i class="fas fa-info-circle me-2"></i> Informacje</h6>
+        <ul class="mb-0">
+            <li><strong>Parser</strong> - określa typ zadania i sposób przetwarzania danych</li>
+            <li><strong>Fetcher</strong> - pobiera dane z zewnętrznego źródła (URL, baza danych, itp.)</li>
+            <li><strong>Channel</strong> - kanał wysyłki powiadomień (email, SMS, push)</li>
+            <li>Zadania z schedule = "manual" są wykonywane tylko ręcznie</li>
+        </ul>
+    </div>
 
 </div>
