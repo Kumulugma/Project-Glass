@@ -105,6 +105,7 @@ $this->title = 'Logowanie - ' . Yii::$app->name;
 .site-login .form-check-input {
     margin-right: 0.5rem;
     cursor: pointer;
+    margin-left: 0;
 }
 
 .site-login .form-check-label {
