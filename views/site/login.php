@@ -10,7 +10,7 @@ $this->title = 'Logowanie - ' . Yii::$app->name;
 ?>
 
 <div class="site-login">
-    <div class="row justify-content-center">
+    <div class="row w-100 justify-content-center">
         <div class="col-md-5">
             
             <div class="text-center mb-4">
