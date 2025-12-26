@@ -4,6 +4,7 @@ namespace app\controllers;
 
 use Yii;
 use yii\web\Controller;
+use yii\filters\AccessControl;
 use app\models\Task;
 use app\models\TaskExecution;
 use app\models\NotificationQueue;
@@ -13,6 +14,24 @@ use app\models\NotificationQueue;
  */
 class DashboardController extends Controller
 {
+    /**
+     * @inheritdoc
+     */
+    public function behaviors()
+    {
+        return [
+            'access' => [
+                'class' => AccessControl::class,
+                'rules' => [
+                    [
+                        'allow' => true,
+                        'roles' => ['@'], // Tylko zalogowani
+                    ],
+                ],
+            ],
+        ];
+    }
+    
     /**
      * Dashboard - strona główna
      */
@@ -125,9 +144,9 @@ class DashboardController extends Controller
         
         foreach ($shoppingItems as $item) {
             $config = $item->getConfigArray();
-            $category = $config['shopping_category'] ?? 'normalny';
+            $category = $config['shopping_category'] ?? 'normal';
             
-            if ($category === 'specjalny') {
+            if ($category === 'special') {
                 $shoppingSpecial[] = $item;
             } else {
                 $shoppingNormal[] = $item;
@@ -139,45 +158,5 @@ class DashboardController extends Controller
             'shoppingNormal' => $shoppingNormal,
             'shoppingSpecial' => $shoppingSpecial,
         ]);
-    }
-    
-    /**
-     * Quick action - oznacz jako wykonane (AJAX)
-     */
-    public function actionQuickComplete($id)
-    {
-        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
-        
-        $task = Task::findOne($id);
-        if (!$task) {
-            return ['success' => false, 'error' => 'Task nie znaleziony'];
-        }
-        
-        $task->markAsCompleted();
-        
-        return [
-            'success' => true,
-            'message' => 'Task oznaczony jako wykonany',
-        ];
-    }
-    
-    /**
-     * Quick action - anuluj wykonanie (AJAX)
-     */
-    public function actionQuickUncomplete($id)
-    {
-        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
-        
-        $task = Task::findOne($id);
-        if (!$task) {
-            return ['success' => false, 'error' => 'Task nie znaleziony'];
-        }
-        
-        $task->markAsUncompleted();
-        
-        return [
-            'success' => true,
-            'message' => 'Task przywrócony',
-        ];
     }
 }

@@ -4,11 +4,12 @@ $params = require __DIR__ . '/params.php';
 $db = require __DIR__ . '/db.php';
 
 $config = [
-    'id' => 'task-reminder',
-    'name' => 'Task Reminder System',
+    'id' => 'glass-system',
+    'name' => 'GlassSystem',
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
     'language' => 'pl-PL',
+    'defaultRoute' => 'site/index',
     'aliases' => [
         '@bower' => '@vendor/bower-asset',
         '@npm'   => '@vendor/npm-asset',
@@ -35,7 +36,14 @@ $config = [
         'mailer' => [
             'class' => \yii\symfonymailer\Mailer::class,
             'viewPath' => '@app/mail',
-            'useFileTransport' => (bool)(getenv('MAILER_USE_FILE_TRANSPORT') ?: true),
+            'useFileTransport' => (bool)(getenv('MAILER_USE_FILE_TRANSPORT') ?? true),
+            'transport' => [
+                'scheme' => getenv('SMTP_ENCRYPTION') ?: 'tls',
+                'host' => getenv('SMTP_HOST') ?: 'localhost',
+                'username' => getenv('SMTP_USERNAME') ?: '',
+                'password' => getenv('SMTP_PASSWORD') ?: '',
+                'port' => (int)(getenv('SMTP_PORT') ?: 587),
+            ],
         ],
         'log' => [
             'traceLevel' => YII_DEBUG ? 3 : 0,

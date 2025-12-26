@@ -8,12 +8,14 @@ use yii\web\Controller;
 use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
-use app\models\ContactForm;
+use app\models\PasswordResetRequestForm;
+use app\models\ResetPasswordForm;
+use app\models\UserLog;
 
 class SiteController extends Controller
 {
     /**
-     * {@inheritdoc}
+     * @inheritdoc
      */
     public function behaviors()
     {
@@ -39,7 +41,7 @@ class SiteController extends Controller
     }
 
     /**
-     * {@inheritdoc}
+     * @inheritdoc
      */
     public function actions()
     {
@@ -47,27 +49,23 @@ class SiteController extends Controller
             'error' => [
                 'class' => 'yii\web\ErrorAction',
             ],
-            'captcha' => [
-                'class' => 'yii\captcha\CaptchaAction',
-                'fixedVerifyCode' => YII_ENV_TEST ? 'testme' : null,
-            ],
         ];
     }
 
     /**
-     * Displays homepage.
-     *
-     * @return string
+     * Strona główna - przekierowanie do dashboardu
      */
     public function actionIndex()
     {
-        return $this->render('index');
+        if (Yii::$app->user->isGuest) {
+            return $this->redirect(['/site/login']);
+        }
+        
+        return $this->redirect(['/dashboard/index']);
     }
 
     /**
-     * Login action.
-     *
-     * @return Response|string
+     * Logowanie
      */
     public function actionLogin()
     {
@@ -75,8 +73,12 @@ class SiteController extends Controller
             return $this->goHome();
         }
 
+        // Layout dla niezalogowanych
+        $this->layout = 'main';
+
         $model = new LoginForm();
         if ($model->load(Yii::$app->request->post()) && $model->login()) {
+            Yii::$app->session->setFlash('success', 'Witaj z powrotem, ' . Yii::$app->user->identity->fullName . '!');
             return $this->goBack();
         }
 
@@ -87,42 +89,64 @@ class SiteController extends Controller
     }
 
     /**
-     * Logout action.
-     *
-     * @return Response
+     * Wylogowanie
      */
     public function actionLogout()
     {
+        if (!Yii::$app->user->isGuest) {
+            UserLog::logLogout(Yii::$app->user->id);
+        }
+        
         Yii::$app->user->logout();
+        Yii::$app->session->setFlash('info', 'Zostałeś wylogowany.');
 
-        return $this->goHome();
+        return $this->redirect(['/site/login']);
     }
 
     /**
-     * Displays contact page.
-     *
-     * @return Response|string
+     * Żądanie resetu hasła
      */
-    public function actionContact()
+    public function actionRequestPasswordReset()
     {
-        $model = new ContactForm();
-        if ($model->load(Yii::$app->request->post()) && $model->contact(Yii::$app->params['adminEmail'])) {
-            Yii::$app->session->setFlash('contactFormSubmitted');
-
-            return $this->refresh();
+        $this->layout = 'main';
+        
+        $model = new PasswordResetRequestForm();
+        
+        if ($model->load(Yii::$app->request->post()) && $model->validate()) {
+            if ($model->sendEmail()) {
+                Yii::$app->session->setFlash('success', 'Sprawdź swoją skrzynkę email. Wysłaliśmy link do resetowania hasła.');
+                return $this->redirect(['login']);
+            } else {
+                Yii::$app->session->setFlash('error', 'Niestety nie udało się wysłać emaila. Spróbuj ponownie później.');
+            }
         }
-        return $this->render('contact', [
+
+        return $this->render('request-password-reset', [
             'model' => $model,
         ]);
     }
 
     /**
-     * Displays about page.
-     *
-     * @return string
+     * Reset hasła
      */
-    public function actionAbout()
+    public function actionResetPassword($token)
     {
-        return $this->render('about');
+        $this->layout = 'main';
+        
+        try {
+            $model = new ResetPasswordForm($token);
+        } catch (\Exception $e) {
+            Yii::$app->session->setFlash('error', $e->getMessage());
+            return $this->redirect(['login']);
+        }
+
+        if ($model->load(Yii::$app->request->post()) && $model->validate() && $model->resetPassword()) {
+            Yii::$app->session->setFlash('success', 'Hasło zostało zmienione. Możesz się teraz zalogować.');
+            return $this->redirect(['login']);
+        }
+
+        return $this->render('reset-password', [
+            'model' => $model,
+        ]);
     }
 }
