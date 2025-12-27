@@ -34,7 +34,7 @@ class EmailChannel implements NotificationChannel
                 ->setFrom([$fromAddress => $fromName])
                 ->setTo($notification->recipient)
                 ->setSubject($notification->subject ?? 'Powiadomienie')
-                ->setTextBody($notification->message)
+//                ->setTextBody($notification->message)
                 ->setHtmlBody(nl2br($notification->message)) // Dodaj HTML version
                 ->send();
             
