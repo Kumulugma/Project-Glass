@@ -2,14 +2,10 @@
 
 /** @var yii\web\View $this */
 /** @var array $taskStats */
-/** @var array $tasksByCategory */
 /** @var app\models\Task[] $upcomingTasks */
 /** @var app\models\Task[] $overdueTasks */
 /** @var app\models\TaskExecution[] $recentExecutions */
 /** @var array $notificationStats */
-/** @var float $billsSum */
-/** @var app\models\Task[] $shoppingItems */
-/** @var float $shoppingSum */
 
 use yii\helpers\Html;
 use yii\helpers\Url;
@@ -81,6 +77,9 @@ $this->title = 'Dashboard - ' . Yii::$app->name;
                                     <div>
                                         <h6 class="mb-1">
                                             <?= Html::a(Html::encode($task->name), ['/task/view', 'id' => $task->id]) ?>
+                                            <?php if ($task->category): ?>
+                                                <span class="badge bg-secondary"><?= $task->category ?></span>
+                                            <?php endif; ?>
                                         </h6>
                                         <small class="text-muted">
                                             Termin: <?= Yii::$app->formatter->asDate($task->due_date) ?>
@@ -90,11 +89,7 @@ $this->title = 'Dashboard - ' . Yii::$app->name;
                                         </small>
                                     </div>
                                     <div>
-                                        <?= Html::a('✓ Oznacz jako wykonane', ['/task/complete', 'id' => $task->id], [
-                                            'class' => 'btn btn-sm btn-success',
-                                            'data-method' => 'post',
-                                            'data-confirm' => 'Oznaczyć jako wykonane?'
-                                        ]) ?>
+                                        <?= Html::a('Zobacz', ['/task/view', 'id' => $task->id], ['class' => 'btn btn-sm btn-outline-danger']) ?>
                                     </div>
                                 </div>
                             </div>
@@ -118,7 +113,9 @@ $this->title = 'Dashboard - ' . Yii::$app->name;
                                     <div>
                                         <h6 class="mb-1">
                                             <?= Html::a(Html::encode($task->name), ['/task/view', 'id' => $task->id]) ?>
-                                            <span class="badge bg-secondary"><?= $task->category ?></span>
+                                            <?php if ($task->category): ?>
+                                                <span class="badge bg-secondary"><?= $task->category ?></span>
+                                            <?php endif; ?>
                                         </h6>
                                         <small class="text-muted">
                                             Termin: <?= Yii::$app->formatter->asDate($task->due_date) ?>
@@ -128,7 +125,7 @@ $this->title = 'Dashboard - ' . Yii::$app->name;
                                         </small>
                                     </div>
                                     <div>
-                                        <?= Html::a('👁', ['/task/view', 'id' => $task->id], ['class' => 'btn btn-sm btn-outline-primary']) ?>
+                                        <?= Html::a('Zobacz', ['/task/view', 'id' => $task->id], ['class' => 'btn btn-sm btn-outline-primary']) ?>
                                     </div>
                                 </div>
                             </div>
@@ -141,7 +138,7 @@ $this->title = 'Dashboard - ' . Yii::$app->name;
             <!-- Ostatnie wykonania -->
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">🔄 Ostatnie wykonania</h5>
+                    <h5 class="mb-0">⚡ Ostatnie wykonania</h5>
                 </div>
                 <div class="card-body">
                     <?php if (!empty($recentExecutions)): ?>
@@ -151,13 +148,10 @@ $this->title = 'Dashboard - ' . Yii::$app->name;
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
                                             <h6 class="mb-1">
-                                                <?= Html::a(Html::encode($execution->task->name), ['/task/view', 'id' => $execution->task_id]) ?>
+                                                <?= Html::encode($execution->task ? $execution->task->name : 'Usunięte zadanie') ?>
                                             </h6>
                                             <small class="text-muted">
-                                                <?= Yii::$app->formatter->asRelativeTime($execution->started_at) ?>
-                                                <?php if ($execution->duration_ms): ?>
-                                                    | Czas: <?= round($execution->duration_ms / 1000, 2) ?>s
-                                                <?php endif; ?>
+                                                <?= Yii::$app->formatter->asDatetime($execution->started_at) ?>
                                             </small>
                                         </div>
                                         <div>
@@ -184,78 +178,6 @@ $this->title = 'Dashboard - ' . Yii::$app->name;
         <!-- Prawa kolumna -->
         <div class="col-lg-4">
             
-            <!-- Kategorie zadań -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">📂 Zadania wg kategorii</h5>
-                </div>
-                <div class="card-body">
-                    <?php if (!empty($tasksByCategory)): ?>
-                        <div class="list-group list-group-flush">
-                            <?php foreach ($tasksByCategory as $cat): ?>
-                                <div class="list-group-item d-flex justify-content-between align-items-center">
-                                    <?= Html::a(
-                                        Html::encode($cat['category'] ?: 'Bez kategorii'),
-                                        ['/task/index', 'category' => $cat['category']],
-                                        ['class' => 'text-decoration-none']
-                                    ) ?>
-                                    <span class="badge bg-primary rounded-pill"><?= $cat['count'] ?></span>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php else: ?>
-                        <p class="text-muted">Brak kategorii</p>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Rachunki w tym miesiącu -->
-            <?php if ($billsSum > 0): ?>
-            <div class="card mb-4 border-warning">
-                <div class="card-header bg-warning">
-                    <h5 class="mb-0">💰 Rachunki w tym miesiącu</h5>
-                </div>
-                <div class="card-body">
-                    <p class="display-6 text-center mb-0">
-                        <?= Yii::$app->formatter->asCurrency($billsSum, 'PLN') ?>
-                    </p>
-                    <div class="text-center mt-2">
-                        <?= Html::a('Zobacz wszystkie', ['/task/index', 'category' => 'rachunki'], ['class' => 'btn btn-sm btn-outline-warning']) ?>
-                    </div>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- Lista zakupów -->
-            <?php if (!empty($shoppingItems)): ?>
-            <div class="card mb-4">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">🛒 Lista zakupów</h5>
-                </div>
-                <div class="card-body">
-                    <ul class="list-unstyled mb-2">
-                        <?php foreach (array_slice($shoppingItems, 0, 5) as $item): ?>
-                            <li class="mb-2">
-                                <?= Html::checkbox('', false, [
-                                    'label' => Html::encode($item->name),
-                                    'id' => 'shopping-' . $item->id,
-                                    'class' => 'form-check-input me-2'
-                                ]) ?>
-                                <?php if ($item->amount): ?>
-                                    <small class="text-muted">(<?= Yii::$app->formatter->asCurrency($item->amount, 'PLN') ?>)</small>
-                                <?php endif; ?>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                    <?php if ($shoppingSum > 0): ?>
-                        <hr>
-                        <p class="mb-2"><strong>Suma: <?= Yii::$app->formatter->asCurrency($shoppingSum, 'PLN') ?></strong></p>
-                    <?php endif; ?>
-                    <?= Html::a('Zobacz pełną listę', ['/task/index', 'category' => 'zakupy'], ['class' => 'btn btn-sm btn-info text-white']) ?>
-                </div>
-            </div>
-            <?php endif; ?>
-
             <!-- Statystyki powiadomień -->
             <div class="card mb-4">
                 <div class="card-header">

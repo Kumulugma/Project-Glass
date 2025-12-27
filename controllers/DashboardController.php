@@ -45,14 +45,6 @@ class DashboardController extends Controller
             'completed' => Task::find()->where(['status' => 'completed'])->count(),
         ];
         
-        // Taski wg kategorii
-        $tasksByCategory = Task::find()
-            ->select(['category', 'COUNT(*) as count'])
-            ->where(['not', ['category' => null]])
-            ->groupBy('category')
-            ->asArray()
-            ->all();
-        
         // Nadchodzące przypomnienia (najbliższe 10)
         $upcomingTasks = Task::find()
             ->where(['status' => 'active'])
@@ -87,31 +79,12 @@ class DashboardController extends Controller
             'failed' => NotificationQueue::find()->where(['status' => 'failed'])->count(),
         ];
         
-        // Suma rachunków w bieżącym miesiącu
-        $billsSum = Task::find()
-            ->where(['category' => 'rachunki', 'status' => 'active'])
-            ->andWhere(['>=', 'due_date', date('Y-m-01')])
-            ->andWhere(['<=', 'due_date', date('Y-m-t')])
-            ->sum('amount') ?: 0;
-        
-        // Lista zakupów
-        $shoppingItems = Task::find()
-            ->where(['category' => 'zakupy', 'status' => 'active'])
-            ->orderBy(['created_at' => SORT_DESC])
-            ->all();
-        
-        $shoppingSum = array_sum(array_column($shoppingItems, 'amount'));
-        
         return $this->render('index', [
             'taskStats' => $taskStats,
-            'tasksByCategory' => $tasksByCategory,
             'upcomingTasks' => $upcomingTasks,
             'overdueTasks' => $overdueTasks,
             'recentExecutions' => $recentExecutions,
             'notificationStats' => $notificationStats,
-            'billsSum' => $billsSum,
-            'shoppingItems' => $shoppingItems,
-            'shoppingSum' => $shoppingSum,
         ]);
     }
     
@@ -133,30 +106,8 @@ class DashboardController extends Controller
             ->orderBy(['due_date' => SORT_ASC])
             ->all();
         
-        // Lista zakupów
-        $shoppingItems = Task::find()
-            ->where(['category' => 'zakupy', 'status' => 'active'])
-            ->all();
-        
-        // Grupuj zakupy po kategorii
-        $shoppingNormal = [];
-        $shoppingSpecial = [];
-        
-        foreach ($shoppingItems as $item) {
-            $config = $item->getConfigArray();
-            $category = $config['shopping_category'] ?? 'normal';
-            
-            if ($category === 'special') {
-                $shoppingSpecial[] = $item;
-            } else {
-                $shoppingNormal[] = $item;
-            }
-        }
-        
         return $this->render('mobile', [
             'todayTasks' => $todayTasks,
-            'shoppingNormal' => $shoppingNormal,
-            'shoppingSpecial' => $shoppingSpecial,
         ]);
     }
 }

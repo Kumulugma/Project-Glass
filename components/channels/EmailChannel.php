@@ -5,6 +5,7 @@ namespace app\components\channels;
 use Yii;
 use app\models\NotificationQueue;
 use app\models\Setting;
+use app\models\Task;
 
 /**
  * EmailChannel - Kanał powiadomień przez Email
@@ -23,20 +24,53 @@ class EmailChannel implements NotificationChannel
             // Pobierz ustawienia z bazy danych
             $fromAddress = Setting::get('channel_email_from_address');
             $fromName = Setting::get('channel_email_from_name', 'Task Reminder');
+            $replyTo = Setting::get('channel_email_reply_to');
+            $useHtml = Setting::get('channel_email_use_html', true);
             
             // Fallback do params jeśli nie ma w ustawieniach
             if (empty($fromAddress)) {
                 $fromAddress = Yii::$app->params['adminEmail'] ?? 'noreply@example.com';
             }
             
-            // Wyślij email
-            $result = Yii::$app->mailer->compose()
-                ->setFrom([$fromAddress => $fromName])
+            // Pobierz task jeśli jest dostępny (dla lepszego formatowania)
+            $task = null;
+            if ($notification->task_id) {
+                $task = Task::findOne($notification->task_id);
+            }
+            
+            // Przygotuj dane dla szablonu
+            $viewData = [
+                'subject' => $notification->subject ?? 'Powiadomienie',
+                'message' => $notification->message,
+                'task' => $task,
+            ];
+            
+            // Utwórz wiadomość email
+            if ($useHtml) {
+                // Wyślij wersję HTML i TEXT (multipart)
+                $message = Yii::$app->mailer->compose(
+                    ['html' => 'notification-html', 'text' => 'notification-text'],
+                    $viewData
+                );
+            } else {
+                // Wyślij tylko wersję TEXT
+                $message = Yii::$app->mailer->compose(
+                    ['text' => 'notification-text'],
+                    $viewData
+                );
+            }
+            
+            $message->setFrom([$fromAddress => $fromName])
                 ->setTo($notification->recipient)
-                ->setSubject($notification->subject ?? 'Powiadomienie')
-//                ->setTextBody($notification->message)
-                ->setHtmlBody(nl2br($notification->message)) // Dodaj HTML version
-                ->send();
+                ->setSubject($notification->subject ?? 'Powiadomienie');
+            
+            // Ustaw Reply-To jeśli jest skonfigurowane
+            if (!empty($replyTo)) {
+                $message->setReplyTo($replyTo);
+            }
+            
+            // Wyślij email
+            $result = $message->send();
             
             if ($result) {
                 return [

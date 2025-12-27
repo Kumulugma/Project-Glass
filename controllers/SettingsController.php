@@ -125,13 +125,22 @@ class SettingsController extends Controller
             ];
         }
         
-        // Utwórz testowe powiadomienie
+        // Pobierz odbiorcę z POST lub użyj domyślnego
+        $recipient = Yii::$app->request->post('recipient', Yii::$app->params['adminEmail'] ?? 'test@example.com');
+        
+        // Utwórz testowe powiadomienie z przykładowymi danymi
         $notification = new \app\models\NotificationQueue();
-        $notification->task_id = 0;
+        $notification->task_id = null; // Brak powiązanego taska dla testu
         $notification->channel = $id;
-        $notification->recipient = Yii::$app->request->post('recipient', Yii::$app->params['adminEmail'] ?? 'test@example.com');
-        $notification->subject = 'Test powiadomienia';
-        $notification->message = 'To jest testowe powiadomienie z systemu Task Reminder.';
+        $notification->recipient = $recipient;
+        $notification->subject = 'Test powiadomienia - GlassSystem';
+        $notification->message = "To jest testowe powiadomienie z systemu GlassSystem.\n\n"
+            . "Jeśli widzisz tę wiadomość, oznacza to że kanał {$id} działa poprawnie!\n\n"
+            . "Informacje testowe:\n"
+            . "- Data wysłania: " . date('Y-m-d H:i:s') . "\n"
+            . "- Kanał: {$id}\n"
+            . "- Odbiorca: {$recipient}\n\n"
+            . "Pozdrawiamy,\nZespół GlassSystem";
         $notification->type = 'alert';
         
         // Wyślij
