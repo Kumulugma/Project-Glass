@@ -6,16 +6,12 @@ use Yii;
 use app\models\NotificationQueue;
 use app\models\PushSubscription;
 use app\models\Setting;
+use app\models\User;
 use Minishlink\WebPush\WebPush;
 use Minishlink\WebPush\Subscription;
 
 /**
- * PushChannel - Kanał powiadomień Web Push (PWA)
- * 
- * Wymaga:
- * - Biblioteki web-push-php: composer require minishlink/web-push
- * - Modelu PushSubscription do przechowywania subskrypcji
- * - Kluczy VAPID (wygenerowanych przez web-push)
+ * PushChannel - Kanał powiadomień Web Push (PWA) z filtrowaniem per-użytkownik
  */
 class PushChannel implements NotificationChannel
 {
@@ -28,14 +24,14 @@ class PushChannel implements NotificationChannel
     public function send(NotificationQueue $notification)
     {
         try {
-            // Pobierz wszystkie aktywne subskrypcje
-            $subscriptions = PushSubscription::findActive();
+            // Filtruj subskrypcje po recipient
+            $subscriptions = $this->getRelevantSubscriptions($notification->recipient);
             
             if (empty($subscriptions)) {
                 return [
                     'success' => false,
                     'response' => null,
-                    'error' => 'Brak aktywnych subskrypcji push',
+                    'error' => 'Brak aktywnych subskrypcji push dla odbiorcy: ' . $notification->recipient,
                 ];
             }
             
@@ -67,8 +63,8 @@ class PushChannel implements NotificationChannel
             $payload = json_encode([
                 'title' => $notification->subject ?? 'Przypomnienie',
                 'body' => $notification->message,
-                'icon' => '/images/icon-192.png',
-                'badge' => '/images/badge-72.png',
+                'icon' => '/favicon.ico',
+                'badge' => '/favicon.ico',
                 'tag' => 'task-' . $notification->task_id,
                 'requireInteraction' => false,
                 'data' => [
@@ -149,6 +145,46 @@ class PushChannel implements NotificationChannel
     }
     
     /**
+     * Znajduje odpowiednie subskrypcje dla danego odbiorcy
+     * 
+     * @param string $recipient Email lub user_id
+     * @return PushSubscription[]
+     */
+    protected function getRelevantSubscriptions($recipient)
+    {
+        $query = PushSubscription::find()
+            ->where(['is_active' => true])
+            ->andWhere(['or', ['failed_at' => null], ['<', 'failed_at', date('Y-m-d H:i:s', strtotime('-7 days'))]]);
+        
+        // Sprawdź czy recipient to email
+        if (filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            // Znajdź user_id po emailu
+            $user = User::findOne(['email' => $recipient]);
+            
+            if ($user) {
+                // Filtruj po user_id LUB email (dla compatibility)
+                $query->andWhere([
+                    'or',
+                    ['user_id' => $user->id],
+                    ['device_name' => $recipient], // Fallback: device_name zawiera email
+                ]);
+            } else {
+                // Brak użytkownika - szukaj po device_name
+                $query->andWhere(['device_name' => $recipient]);
+            }
+        } else {
+            // Recipient to user_id (int) lub inna wartość
+            $query->andWhere([
+                'or',
+                ['user_id' => $recipient],
+                ['device_name' => $recipient],
+            ]);
+        }
+        
+        return $query->all();
+    }
+    
+    /**
      * Waliduje konfigurację
      * 
      * @return array|true
@@ -215,7 +251,7 @@ class PushChannel implements NotificationChannel
      */
     public static function getDescription()
     {
-        return 'Wysyła powiadomienia push do przeglądarek internetowych (Chrome, Firefox, Edge). Wymaga subskrypcji użytkowników.';
+        return 'Wysyła powiadomienia push do przeglądarek użytkowników. Wymaga subskrypcji użytkownika.';
     }
     
     /**
@@ -237,7 +273,7 @@ class PushChannel implements NotificationChannel
                 'type' => 'textarea',
                 'label' => 'VAPID Public Key',
                 'placeholder' => 'BP1ZL...',
-                'help' => 'Wygeneruj klucze: vendor/bin/web-push generate-vapid-keys',
+                'help' => 'Wygeneruj klucze: php generate-vapid-keys.php',
                 'required' => true,
                 'rows' => 2,
             ],
@@ -247,20 +283,6 @@ class PushChannel implements NotificationChannel
                 'placeholder' => 'AAAA...',
                 'help' => 'Klucz prywatny VAPID (trzymaj w tajemnicy!)',
                 'required' => true,
-            ],
-            'default_icon' => [
-                'type' => 'text',
-                'label' => 'Domyślna ikona',
-                'placeholder' => '/images/icon-192.png',
-                'default' => '/images/icon-192.png',
-                'help' => 'Ścieżka do ikony powiadomienia (192x192px)',
-            ],
-            'default_badge' => [
-                'type' => 'text',
-                'label' => 'Domyślna odznaka',
-                'placeholder' => '/images/badge-72.png',
-                'default' => '/images/badge-72.png',
-                'help' => 'Ścieżka do małej odznaki (72x72px)',
             ],
         ];
     }

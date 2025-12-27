@@ -393,10 +393,10 @@ $this->registerLinkTag(['rel' => 'stylesheet', 'href' => 'https://cdnjs.cloudfla
             'encode' => false,
             'items' => [
                 ['label' => '<i class="fas fa-bell me-2"></i> Powiadomienia', 'url' => ['/notification/index'], 'encode' => false],
+                ['label' => '<i class="fas fa-mobile-screen me-2"></i> Subskrypcje Push', 'url' => ['/push/index'], 'encode' => false],
                 ['label' => '<i class="fas fa-history me-2"></i> Historia wykonań', 'url' => ['/execution/index'], 'encode' => false],
                 ['label' => '<i class="fas fa-chart-bar me-2"></i> Statystyki', 'url' => ['/stats/index'], 'encode' => false],
                 '<div class="dropdown-divider"></div>',
-                // NOWE - Ustawienia channeli
                 ['label' => '<i class="fas fa-sliders-h me-2"></i> Ustawienia channeli', 'url' => ['/settings/index'], 'encode' => false],
                 '<div class="dropdown-divider"></div>',
                 ['label' => '<i class="fas fa-user-shield me-2"></i> Logi użytkowników', 'url' => ['/user/logs'], 'encode' => false, 'visible' => Yii::$app->user->identity->isAdmin],

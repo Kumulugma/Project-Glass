@@ -149,9 +149,10 @@ class PushSubscription extends ActiveRecord
      * 
      * @param array $subscriptionData
      * @param int|null $userId
+     * @param string|null $deviceName Email lub nazwa urządzenia
      * @return PushSubscription|null
      */
-    public static function createOrUpdate($subscriptionData, $userId = null)
+    public static function createOrUpdate($subscriptionData, $userId = null, $deviceName = null)
     {
         $endpoint = $subscriptionData['endpoint'] ?? null;
         
@@ -175,6 +176,11 @@ class PushSubscription extends ActiveRecord
         $subscription->failed_at = null;
         $subscription->failure_reason = null;
         
+        // Device name (email lub nazwa)
+        if ($deviceName) {
+            $subscription->device_name = $deviceName;
+        }
+        
         if (isset($_SERVER['HTTP_USER_AGENT'])) {
             $subscription->user_agent = $_SERVER['HTTP_USER_AGENT'];
         }
@@ -183,7 +189,7 @@ class PushSubscription extends ActiveRecord
             return $subscription;
         }
         
-        Yii::error("Failed to save push subscription: " . json_encode($subscription->errors), __METHOD__);
+        Yii::error("Failed to save push subscription: " . print_r($subscription->errors, true), __METHOD__);
         return null;
     }
 }

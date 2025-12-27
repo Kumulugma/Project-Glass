@@ -1,0 +1,421 @@
+/* 
+ * Ujednolicone style dla GridView w całej aplikacji
+ * Plik: web/css/grid-styles.css
+ */
+
+/* ============================================
+   GŁÓWNY KONTENER GRIDA
+   ============================================ */
+.grid-view {
+    position: relative;
+}
+
+/* ============================================
+   TABELA
+   ============================================ */
+.grid-view table {
+    width: 100%;
+    margin-bottom: 0;
+    border-collapse: collapse;
+}
+
+.grid-view table.table-hover tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.grid-view table.table-hover tbody tr:hover {
+    background-color: rgba(37, 99, 235, 0.05);
+}
+
+.grid-view table.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Nagłówki tabeli */
+.grid-view thead th {
+    background-color: #f8fafc;
+    border-bottom: 2px solid #e2e8f0;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #475569;
+    padding: 0.5rem 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    white-space: nowrap;
+}
+
+/* Komórki tabeli - mniejszy padding dla bardziej kompaktowego wyglądu */
+.grid-view tbody td {
+    padding: 0.5rem 0.75rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.875rem;
+}
+
+/* Kolumna ID - mniejsza i szara */
+.grid-view tbody td:first-child,
+.grid-view thead th:first-child {
+    color: #94a3b8;
+    font-size: 0.875rem;
+    width: 60px;
+    text-align: center;
+}
+
+/* ============================================
+   KOLUMNA AKCJI (ostatnia kolumna)
+   ============================================ */
+.grid-view .action-column {
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+    white-space: nowrap;
+    text-align: right;
+    padding-right: 0.75rem !important;
+    padding-left: 0.5rem !important;
+}
+
+/* Przyciski akcji - małe i kompaktowe */
+/* !important aby nadpisać Bootstrap .btn-sm */
+.grid-view .action-column .btn,
+.grid-view tbody td .btn-sm,
+.grid-view tbody td .btn {
+    margin-left: 0.25rem;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.75rem !important;
+    line-height: 1.2 !important;
+    border-radius: 0.25rem;
+    min-width: auto;
+}
+
+.grid-view .action-column .btn:first-child,
+.grid-view tbody td .btn:first-child {
+    margin-left: 0;
+}
+
+/* Ikony w przyciskach - mniejsze */
+.grid-view .action-column .btn i,
+.grid-view .action-column .btn .fas,
+.grid-view .action-column .btn .far {
+    font-size: 0.875rem;
+}
+
+/* Przyciski tylko z ikonami (bez tekstu) */
+.grid-view .action-column .btn i:only-child,
+.grid-view .action-column .btn .fas:only-child,
+.grid-view .action-column .btn .far:only-child {
+    margin: 0;
+}
+
+/* Zapewnij że przyciski są w jednej linii */
+.grid-view .action-column {
+    display: table-cell;
+    vertical-align: middle;
+}
+
+/* Warianty kolorów przycisków - bardziej subtelne */
+.grid-view .action-column .btn-primary {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.grid-view .action-column .btn-outline-primary {
+    color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.grid-view .action-column .btn-outline-primary:hover {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.grid-view .action-column .btn-success {
+    background-color: #10b981;
+    border-color: #10b981;
+}
+
+.grid-view .action-column .btn-outline-success {
+    color: #10b981;
+    border-color: #10b981;
+}
+
+.grid-view .action-column .btn-warning {
+    background-color: #f59e0b;
+    border-color: #f59e0b;
+}
+
+.grid-view .action-column .btn-outline-warning {
+    color: #f59e0b;
+    border-color: #f59e0b;
+}
+
+.grid-view .action-column .btn-danger {
+    background-color: #ef4444;
+    border-color: #ef4444;
+}
+
+.grid-view .action-column .btn-outline-danger {
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+.grid-view .action-column .btn-info {
+    background-color: #06b6d4;
+    border-color: #06b6d4;
+}
+
+.grid-view .action-column .btn-outline-info {
+    color: #06b6d4;
+    border-color: #06b6d4;
+}
+
+.grid-view .action-column .btn-secondary {
+    background-color: #64748b;
+    border-color: #64748b;
+}
+
+.grid-view .action-column .btn-outline-secondary {
+    color: #64748b;
+    border-color: #64748b;
+}
+
+/* ============================================
+   BADGE'Y I STATUSY
+   ============================================ */
+.grid-view .badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.35em 0.65em;
+    border-radius: 0.375rem;
+}
+
+/* ============================================
+   SUMMARY (Wyświetlone 1-4 z 4 rekordów)
+   ============================================ */
+.grid-view .summary {
+    padding: 1rem;
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+.grid-view .summary b {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+/* ============================================
+   PAGINACJA
+   ============================================ */
+.grid-view .pagination {
+    margin: 0;
+    padding: 1.5rem 1rem;
+    background-color: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.grid-view .pagination li {
+    display: inline-block;
+}
+
+.grid-view .pagination a,
+.grid-view .pagination span {
+    display: inline-block;
+    padding: 0.5rem 0.75rem;
+    margin: 0 0.125rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    min-width: 2.5rem;
+    text-align: center;
+}
+
+/* Link zwykły */
+.grid-view .pagination a {
+    color: #475569;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+}
+
+.grid-view .pagination a:hover {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+/* Aktywna strona */
+.grid-view .pagination .active a,
+.grid-view .pagination .active span {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    cursor: default;
+}
+
+/* Disabled (prev/next gdy nie ma więcej stron) */
+.grid-view .pagination .disabled a,
+.grid-view .pagination .disabled span {
+    color: #cbd5e1;
+    background-color: #f8fafc;
+    border-color: #e2e8f0;
+    cursor: not-allowed;
+}
+
+/* Strzałki prev/next */
+.grid-view .pagination .prev a,
+.grid-view .pagination .next a {
+    font-weight: 600;
+}
+
+/* ============================================
+   PUSTY GRID
+   ============================================ */
+.grid-view .empty {
+    padding: 3rem 1rem;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 1rem;
+    background-color: #f8fafc;
+}
+
+.grid-view .empty::before {
+    content: "📭";
+    display: block;
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+/* ============================================
+   RESPONSYWNOŚĆ - MOBILE
+   ============================================ */
+@media (max-width: 768px) {
+    /* Ukryj kolumnę ID na mobile */
+    .grid-view tbody td:first-child,
+    .grid-view thead th:first-child {
+        display: none;
+    }
+    
+    /* Zmniejsz padding w komórkach */
+    .grid-view tbody td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .grid-view thead th {
+        padding: 0.5rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    /* Przyciski akcji mniejsze */
+    .grid-view .action-column .btn {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.7rem;
+        margin-left: 0.2rem;
+    }
+    
+    .grid-view .action-column .btn i,
+    .grid-view .action-column .btn .fas {
+        font-size: 0.75rem;
+    }
+    
+    /* Możesz stackować buttons jeśli naprawdę za dużo */
+    .grid-view .action-column.stack-mobile {
+        white-space: normal;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .grid-view .action-column.stack-mobile .btn {
+        margin-left: 0;
+        width: 100%;
+    }
+    
+    /* Summary mniejszy */
+    .grid-view .summary {
+        padding: 0.75rem;
+        font-size: 0.75rem;
+    }
+    
+    /* Paginacja mniejsza */
+    .grid-view .pagination {
+        padding: 1rem 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .grid-view .pagination a,
+    .grid-view .pagination span {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.75rem;
+        min-width: 2rem;
+    }
+    
+    /* Badge'y mniejsze */
+    .grid-view .badge {
+        font-size: 0.65rem;
+        padding: 0.25em 0.5em;
+    }
+}
+
+/* ============================================
+   DODATKOWE KLASY POMOCNICZE
+   ============================================ */
+
+/* Dla małych gridów (np. w modal) */
+.grid-view-sm table.table-sm tbody td {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.grid-view-sm thead th {
+    padding: 0.5rem;
+    font-size: 0.8125rem;
+}
+
+/* Dla kompaktowych gridów bez ramki */
+.grid-view .card-body.p-0 {
+    overflow-x: auto;
+}
+
+.grid-view .card-body.p-0 table {
+    margin-bottom: 0;
+}
+
+/* ============================================
+   FIX dla Yii2 GridViewspecyficzne klasy
+   ============================================ */
+
+/* Sortowanie w nagłówkach */
+.grid-view th a {
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.grid-view th a:hover {
+    color: #2563eb;
+}
+
+.grid-view th a .glyphicon,
+.grid-view th a .fa {
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+    opacity: 0.5;
+}
+
+/* Filters (jeśli używane) */
+.grid-view .filters input,
+.grid-view .filters select {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.5rem;
+}
