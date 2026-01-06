@@ -24,77 +24,72 @@ use yii\behaviors\TimestampBehavior;
  *
  * @property Task $task
  */
-class TaskExecution extends ActiveRecord
-{
+class TaskExecution extends ActiveRecord {
+
     /**
      * @inheritdoc
      */
-    public static function tableName()
-    {
+    public static function tableName() {
         return '{{%task_executions}}';
     }
 
     /**
      * @inheritdoc
      */
-public function rules()
-{
-    return [
-        [['task_id', 'status'], 'required'],
-        [['task_id', 'started_at', 'finished_at', 'duration_ms'], 'integer'],
-        [['status'], 'in', 'range' => ['running', 'success', 'failed', 'skipped']],
-        [['stage'], 'in', 'range' => ['fetch', 'parse', 'evaluate', 'notify', 'completed']], // ← Dodaj tę linię
-        [['stage'], 'string', 'max' => 50], // ← I tę
-        [['raw_data', 'parsed_data', 'evaluation_result', 'error_message', 'error_trace'], 'string'],
-    ];
-}
-    
-    /**
- * @inheritdoc
- */
-public function fields()
-{
-    return [
-        'id',
-        'task_id',
-        'status',
-        'stage', // ← Upewnij się że to jest 'stage', nie 'current_stage'
-        'started_at',
-        'finished_at',
-        'duration_ms',
-        'raw_data',
-        'parsed_data',
-        'evaluation_result',
-        'error_message',
-        'error_trace',
-    ];
-}
+    public function rules() {
+        return [
+            [['task_id', 'status'], 'required'],
+            [['task_id', 'started_at', 'finished_at', 'duration_ms'], 'integer'],
+            [['status'], 'in', 'range' => ['running', 'success', 'failed', 'skipped']],
+            [['stage'], 'in', 'range' => ['fetch', 'parse', 'evaluate', 'notify', 'completed']], // ← Dodaj tę linię
+            [['stage'], 'string', 'max' => 50], // ← I tę
+            [['raw_data', 'parsed_data', 'evaluation_result', 'error_message', 'error_trace'], 'string'],
+        ];
+    }
 
-    public function attributeLabels()
-{
-    return [
-        'id' => 'ID',
-        'task_id' => 'Zadanie',
-        'status' => 'Status',
-        'stage' => 'Obecny etap', // ← ZMIEŃ z 'current_stage' na 'stage'
-        'started_at' => 'Rozpoczęto',
-        'finished_at' => 'Zakończono',
-        'error_message' => 'Komunikat błędu',
-        'error_trace' => 'Ślad błędu',
-        'raw_data' => 'Surowe dane',
-        'parsed_data' => 'Przetworzone dane',
-        'evaluation_result' => 'Wynik ewaluacji',
-        'duration_ms' => 'Czas wykonania (ms)',
-    ];
-}
+    /**
+     * @inheritdoc
+     */
+    public function fields() {
+        return [
+            'id',
+            'task_id',
+            'status',
+            'stage', // ← Upewnij się że to jest 'stage', nie 'current_stage'
+            'started_at',
+            'finished_at',
+            'duration_ms',
+            'raw_data',
+            'parsed_data',
+            'evaluation_result',
+            'error_message',
+            'error_trace',
+        ];
+    }
+
+    public function attributeLabels() {
+        return [
+            'id' => 'ID',
+            'task_id' => 'Zadanie',
+            'status' => 'Status',
+            'stage' => 'Obecny etap', // ← ZMIEŃ z 'current_stage' na 'stage'
+            'started_at' => 'Rozpoczęto',
+            'finished_at' => 'Zakończono',
+            'error_message' => 'Komunikat błędu',
+            'error_trace' => 'Ślad błędu',
+            'raw_data' => 'Surowe dane',
+            'parsed_data' => 'Przetworzone dane',
+            'evaluation_result' => 'Wynik ewaluacji',
+            'duration_ms' => 'Czas wykonania (ms)',
+        ];
+    }
 
     /**
      * Relacja do Task
      *
      * @return \yii\db\ActiveQuery
      */
-    public function getTask()
-    {
+    public function getTask() {
         return $this->hasOne(Task::class, ['id' => 'task_id']);
     }
 
@@ -103,8 +98,7 @@ public function fields()
      *
      * @return float|null
      */
-    public function getDuration()
-    {
+    public function getDuration() {
         if (!$this->started_at || !$this->finished_at) {
             return null;
         }
@@ -120,8 +114,7 @@ public function fields()
      *
      * @return bool
      */
-    public function isSuccess()
-    {
+    public function isSuccess() {
         return $this->status === 'success';
     }
 
@@ -130,8 +123,7 @@ public function fields()
      *
      * @return bool
      */
-    public function isFailed()
-    {
+    public function isFailed() {
         return $this->status === 'failed';
     }
 
@@ -140,8 +132,7 @@ public function fields()
      *
      * @return bool
      */
-    public function isRunning()
-    {
+    public function isRunning() {
         return $this->status === 'running';
     }
 
@@ -150,8 +141,7 @@ public function fields()
      *
      * @return string
      */
-    public function getStatusLabel()
-    {
+    public function getStatusLabel() {
         $labels = [
             'running' => 'W trakcie',
             'success' => 'Sukces',
@@ -167,8 +157,7 @@ public function fields()
      *
      * @return string
      */
-    public function getStatusBadge()
-    {
+    public function getStatusBadge() {
         $badges = [
             'running' => '<span class="badge bg-info">W trakcie</span>',
             'success' => '<span class="badge bg-success">Sukces</span>',
@@ -179,17 +168,16 @@ public function fields()
         return $badges[$this->status] ?? '<span class="badge bg-secondary">' . $this->status . '</span>';
     }
 
-/**
- * Ustawia stage wykonania
- *
- * @param string $stage
- * @return bool
- */
-public function setStage($stage)
-{
-    $this->stage = $stage; // ← ZMIEŃ z 'current_stage' na 'stage'
-    return $this->save(false, ['stage', 'updated_at']);
-}
+    /**
+     * Ustawia stage wykonania
+     *
+     * @param string $stage
+     * @return bool
+     */
+    public function setStage($stage) {
+        $this->stage = $stage; // ← ZMIEŃ z 'current_stage' na 'stage'
+        return $this->save(false, ['stage', 'updated_at']);
+    }
 
     /**
      * Zapisuje surowe dane z fetchera
@@ -197,8 +185,7 @@ public function setStage($stage)
      * @param mixed $data
      * @return bool
      */
-    public function saveRawData($data)
-    {
+    public function saveRawData($data) {
         $this->raw_data = is_array($data) ? json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : $data;
         return $this->save(false, ['raw_data', 'updated_at']);
     }
@@ -209,8 +196,7 @@ public function setStage($stage)
      * @param mixed $data
      * @return bool
      */
-    public function saveParsedData($data)
-    {
+    public function saveParsedData($data) {
         $this->parsed_data = is_array($data) ? json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : $data;
         return $this->save(false, ['parsed_data', 'updated_at']);
     }
@@ -221,8 +207,7 @@ public function setStage($stage)
      * @param mixed $result
      * @return bool
      */
-    public function saveEvaluationResult($result)
-    {
+    public function saveEvaluationResult($result) {
         $this->evaluation_result = is_array($result) ? json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : $result;
         return $this->save(false, ['evaluation_result', 'updated_at']);
     }
@@ -232,8 +217,7 @@ public function setStage($stage)
      *
      * @return bool
      */
-    public function markAsSuccess()
-    {
+    public function markAsSuccess() {
         $this->status = 'success';
         $this->finished_at = date('Y-m-d H:i:s');
         return $this->save(false, ['status', 'finished_at', 'updated_at']);
@@ -245,8 +229,7 @@ public function setStage($stage)
      * @param string $errorMessage
      * @return bool
      */
-    public function markAsFailed($errorMessage)
-    {
+    public function markAsFailed($errorMessage) {
         $this->status = 'failed';
         $this->error_message = $errorMessage;
         $this->finished_at = date('Y-m-d H:i:s');
@@ -259,8 +242,7 @@ public function setStage($stage)
      * @param string $message
      * @return bool
      */
-    public function markAsPartial($message = null)
-    {
+    public function markAsPartial($message = null) {
         $this->status = 'partial';
         if ($message) {
             $this->error_message = $message;
@@ -274,8 +256,7 @@ public function setStage($stage)
      *
      * @return array|null
      */
-    public function getRawDataArray()
-    {
+    public function getRawDataArray() {
         if (!$this->raw_data) {
             return null;
         }
@@ -293,8 +274,7 @@ public function setStage($stage)
      *
      * @return array|null
      */
-    public function getParsedDataArray()
-    {
+    public function getParsedDataArray() {
         if (!$this->parsed_data) {
             return null;
         }
@@ -312,8 +292,7 @@ public function setStage($stage)
      *
      * @return array|null
      */
-    public function getEvaluationResultArray()
-    {
+    public function getEvaluationResultArray() {
         if (!$this->evaluation_result) {
             return null;
         }
@@ -332,8 +311,7 @@ public function setStage($stage)
      * @param int $taskId
      * @return TaskExecution
      */
-    public static function create($taskId)
-    {
+    public static function create($taskId) {
         $execution = new self();
         $execution->task_id = $taskId;
         $execution->status = 'running';
@@ -349,12 +327,11 @@ public function setStage($stage)
      * @param int $taskId
      * @return TaskExecution|null
      */
-    public static function getLastForTask($taskId)
-    {
+    public static function getLastForTask($taskId) {
         return self::find()
-            ->where(['task_id' => $taskId])
-            ->orderBy(['started_at' => SORT_DESC])
-            ->one();
+                        ->where(['task_id' => $taskId])
+                        ->orderBy(['started_at' => SORT_DESC])
+                        ->one();
     }
 
     /**
@@ -364,13 +341,12 @@ public function setStage($stage)
      * @param int $limit
      * @return TaskExecution[]
      */
-    public static function getRecentForTask($taskId, $limit = 10)
-    {
+    public static function getRecentForTask($taskId, $limit = 10) {
         return self::find()
-            ->where(['task_id' => $taskId])
-            ->orderBy(['started_at' => SORT_DESC])
-            ->limit($limit)
-            ->all();
+                        ->where(['task_id' => $taskId])
+                        ->orderBy(['started_at' => SORT_DESC])
+                        ->limit($limit)
+                        ->all();
     }
 
     /**
@@ -380,13 +356,12 @@ public function setStage($stage)
      * @param int $limit
      * @return TaskExecution[]
      */
-    public static function getFailedForTask($taskId, $limit = 10)
-    {
+    public static function getFailedForTask($taskId, $limit = 10) {
         return self::find()
-            ->where(['task_id' => $taskId, 'status' => 'failed'])
-            ->orderBy(['started_at' => SORT_DESC])
-            ->limit($limit)
-            ->all();
+                        ->where(['task_id' => $taskId, 'status' => 'failed'])
+                        ->orderBy(['started_at' => SORT_DESC])
+                        ->limit($limit)
+                        ->all();
     }
 
     /**
@@ -395,8 +370,7 @@ public function setStage($stage)
      * @param int $days Liczba dni do zachowania
      * @return int Liczba usuniętych rekordów
      */
-    public static function cleanup($days = 30)
-    {
+    public static function cleanup($days = 30) {
         $date = date('Y-m-d H:i:s', strtotime("-{$days} days"));
 
         return self::deleteAll(['<', 'created_at', strtotime($date)]);
@@ -407,8 +381,7 @@ public function setStage($stage)
      *
      * @return string
      */
-    public function getDurationFormatted()
-    {
+    public function getDurationFormatted() {
         $duration = $this->getDuration();
 
         if ($duration === null) {
@@ -432,8 +405,7 @@ public function setStage($stage)
     /**
      * @inheritdoc
      */
-    public function beforeSave($insert)
-    {
+    public function beforeSave($insert) {
         if (parent::beforeSave($insert)) {
             // Automatycznie ustaw finished_at jeśli status zmienił się na success/failed
             if (!$insert && in_array($this->status, ['success', 'failed', 'partial'])) {
@@ -447,87 +419,98 @@ public function setStage($stage)
 
         return false;
     }
-    
+
 // ============================================================
 // METODY STATYCZNE (FABRYKI) - używane przez TaskRunner
 // ============================================================
 
-/**
- * Rozpoczyna nowe wykonanie taska (STATYCZNA - tworzy obiekt)
- *
- * @param int $taskId
- * @return TaskExecution
- */
-public static function start($taskId)
-{
-    $execution = new self();
-    $execution->task_id = $taskId;
-    $execution->status = 'running';
-    $execution->stage = 'fetch';
-    $execution->started_at = time();
-    
-    // Zapisz z walidacją, żeby task_id został uwzględniony
-    if (!$execution->save()) {
-        throw new \Exception('Failed to create TaskExecution: ' . json_encode($execution->errors));
+    /**
+     * Rozpoczyna nowe wykonanie taska (STATYCZNA - tworzy obiekt)
+     *
+     * @param int $taskId
+     * @return TaskExecution
+     */
+    public static function start($taskId) {
+        $execution = new self();
+        $execution->task_id = $taskId;
+        $execution->status = 'running';
+        $execution->stage = 'fetch';
+        $execution->started_at = time();
+
+        // Zapisz z walidacją, żeby task_id został uwzględniony
+        if (!$execution->save()) {
+            throw new \Exception('Failed to create TaskExecution: ' . json_encode($execution->errors));
+        }
+
+        return $execution;
     }
-    
-    return $execution;
-}
 
 // ============================================================
 // METODY INSTANCYJNE - działają na istniejącym obiekcie
 // ============================================================
 
-/**
- * Rozpoczyna wykonanie (na istniejącym obiekcie)
- *
- * @return bool
- */
-public function begin()
-{
-    $this->status = 'running';
-    $this->started_at = date('Y-m-d H:i:s');
-    return $this->save(false, ['status', 'started_at', 'updated_at']);
-}
-
-/**
- * Kończy wykonanie z sukcesem
- *
- * @return bool
- */
-public function complete()
-{
-    $this->status = 'success';
-    $this->finished_at = date('Y-m-d H:i:s');
-    return $this->save(false, ['status', 'finished_at', 'updated_at']);
-}
-
-/**
- * Kończy wykonanie z błędem
- *
- * @param \Exception|string $error
- * @return bool
- */
-public function fail($error)
-{
-    $this->status = 'failed';
-    $this->finished_at = date('Y-m-d H:i:s');
-    
-    if ($error instanceof \Exception) {
-        $this->error_message = $error->getMessage();
-        
-        // Opcjonalnie zapisz stack trace w logu
-        Yii::error([
-            'message' => 'Task execution failed',
-            'task_id' => $this->task_id,
-            'execution_id' => $this->id,
-            'error' => $error->getMessage(),
-            'trace' => $error->getTraceAsString(),
-        ], __METHOD__);
-    } else {
-        $this->error_message = (string)$error;
+    /**
+     * Rozpoczyna wykonanie (na istniejącym obiekcie)
+     *
+     * @return bool
+     */
+    public function begin() {
+        $this->status = 'running';
+        $this->started_at = date('Y-m-d H:i:s');
+        return $this->save(false, ['status', 'started_at', 'updated_at']);
     }
-    
-    return $this->save(false, ['status', 'error_message', 'finished_at', 'updated_at']);
-}
+
+    /**
+     * Kończy wykonanie z sukcesem
+     *
+     * @return bool
+     */
+    public function complete() {
+        $this->status = 'success';
+        $this->finished_at = date('Y-m-d H:i:s');
+        return $this->save(false, ['status', 'finished_at', 'updated_at']);
+    }
+
+    /**
+     * Kończy wykonanie z błędem
+     *
+     * @param \Exception|string $error
+     * @return bool
+     */
+    public function fail($error) {
+        $this->status = 'failed';
+        $this->finished_at = date('Y-m-d H:i:s');
+
+        if ($error instanceof \Exception) {
+            $this->error_message = $error->getMessage();
+
+            // Opcjonalnie zapisz stack trace w logu
+            Yii::error([
+                'message' => 'Task execution failed',
+                'task_id' => $this->task_id,
+                'execution_id' => $this->id,
+                'error' => $error->getMessage(),
+                'trace' => $error->getTraceAsString(),
+                    ], __METHOD__);
+        } else {
+            $this->error_message = (string) $error;
+        }
+
+        return $this->save(false, ['status', 'error_message', 'finished_at', 'updated_at']);
+    }
+
+    /**
+     * Hook po zapisie - incrementuj liczniki statystyk
+     */
+    public function afterSave($insert, $changedAttributes) {
+        parent::afterSave($insert, $changedAttributes);
+
+        // Tylko przy tworzeniu nowego execution - incrementuj licznik
+        if ($insert) {
+            \app\components\StatsReporter::incrementExecutions(
+                    date('Y-m-d H:i:s', $this->started_at)
+            );
+        }
+    }
+
 }

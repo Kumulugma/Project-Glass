@@ -84,6 +84,15 @@ $config = [
                 'settings/generate-vapid' => 'settings/generate-vapid',
             ],
         ],
+        'archiver' => [
+            'class' => 'app\components\DataArchiver',
+            'archiveDir' => '@runtime/archives', // Katalog z archiwami
+            'archiveAfterDays' => 30, // Archiwizuj dane starsze niż 30 dni
+            'batchSize' => 1000, // Rozmiar batcha do przetwarzania
+        ],
+        's3Uploader' => [
+            'class' => 'app\components\S3Uploader',
+        ],
     ],
     'params' => $params,
 ];

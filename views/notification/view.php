@@ -70,7 +70,7 @@ $this->params['breadcrumbs'][] = $this->title;
                             ],
                             [
                                 'attribute' => 'sent_at',
-                                'format' => 'datetime',
+                                'format' => 'raw',
                                 'value' => $model->sent_at ? Yii::$app->formatter->asDatetime($model->sent_at) : '-',
                             ],
                         ],

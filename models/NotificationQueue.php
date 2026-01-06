@@ -220,4 +220,16 @@ class NotificationQueue extends ActiveRecord
             ->limit($limit)
             ->all();
     }
+    /**
+ * Hook po zapisie - incrementuj liczniki statystyk
+ */
+public function afterSave($insert, $changedAttributes)
+{
+    parent::afterSave($insert, $changedAttributes);
+    
+    // Tylko przy tworzeniu nowego powiadomienia - incrementuj licznik
+    if ($insert) {
+        \app\components\StatsReporter::incrementNotifications();
+    }
+}
 }

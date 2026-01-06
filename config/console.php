@@ -49,6 +49,13 @@ $config = [
                 'port' => (int) (getenv('SMTP_PORT') ?: 465),
             ],
         ],
+        'urlManager' => [
+            'class' => 'yii\web\UrlManager',
+            'baseUrl' => 'https://twoja-domena.pl', // ← Zmień na swoją domenę
+            'scriptUrl' => 'https://twoja-domena.pl/index.php', // ← Zmień na swoją domenę
+            'enablePrettyUrl' => true,
+            'showScriptName' => false,
+        ],
     ],
     'params' => $params,
         /*

@@ -22,7 +22,8 @@
         "minishlink/web-push": "^8.0",
         "symfony/dom-crawler": "^6.0",
         "symfony/css-selector": "^6.0",
-        "smsapi/php-client": "^3.0"
+        "smsapi/php-client": "^3.0",
+        "aws/aws-sdk-php": "^3.337"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "~2.1.0",
