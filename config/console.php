@@ -49,6 +49,17 @@ $config = [
                 'port' => (int) (getenv('SMTP_PORT') ?: 465),
             ],
         ],
+        // DODANY KOMPONENT ARCHIVER
+        'archiver' => [
+            'class' => 'app\components\DataArchiver',
+            'archiveDir' => '@runtime/archives', // Katalog z archiwami
+            'archiveAfterDays' => 2, // Archiwizuj dane starsze niż 2 dni
+            'batchSize' => 1000, // Rozmiar batcha do przetwarzania
+        ],
+        // DODANY KOMPONENT S3UPLOADER (jeśli używasz)
+        's3Uploader' => [
+            'class' => 'app\components\S3Uploader',
+        ],
         'urlManager' => [
             'class' => 'yii\web\UrlManager',
             'baseUrl' => 'https://twoja-domena.pl', // ← Zmień na swoją domenę

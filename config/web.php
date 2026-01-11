@@ -87,7 +87,7 @@ $config = [
         'archiver' => [
             'class' => 'app\components\DataArchiver',
             'archiveDir' => '@runtime/archives', // Katalog z archiwami
-            'archiveAfterDays' => 30, // Archiwizuj dane starsze niż 30 dni
+            'archiveAfterDays' => 2, // Archiwizuj dane starsze niż 30 dni
             'batchSize' => 1000, // Rozmiar batcha do przetwarzania
         ],
         's3Uploader' => [

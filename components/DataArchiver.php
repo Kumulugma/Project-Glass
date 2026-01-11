@@ -26,7 +26,7 @@ class DataArchiver extends Component
     /**
      * @var int Liczba dni po których dane są archiwizowane
      */
-    public $archiveAfterDays = 30;
+    public $archiveAfterDays = 2;
     
     /**
      * @var int Rozmiar batcha do przetwarzania
