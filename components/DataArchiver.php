@@ -14,6 +14,7 @@ use app\models\ArchiveLog;
  * Funkcje:
  * - Archiwizacja task_executions i fetch_results do plików JSONL.GZ
  * - Automatyczne czyszczenie starych rekordów z bazy
+ * - Optymalizacja tabel po usunięciu danych
  * - Wczytywanie zarchiwizowanych danych
  */
 class DataArchiver extends Component
@@ -67,10 +68,83 @@ class DataArchiver extends Component
             'fetch_results' => $this->archiveFetchResults(),
         ];
         
+        // Optymalizuj tabele po usunięciu danych
+        $optimizeStats = $this->optimizeTables();
+        $stats['optimization'] = $optimizeStats;
+        
         // Zaloguj operację
         ArchiveLog::log('archive', 'daily', $stats);
         
         return $stats;
+    }
+    
+    /**
+     * Optymalizuje tabele MySQL po usunięciu danych
+     * Usuwa fragmentację i odzyskuje niewykorzystane miejsce
+     * 
+     * @return array Statystyki optymalizacji
+     */
+    protected function optimizeTables()
+    {
+        $startTime = microtime(true);
+        $optimizedTables = [];
+        $errors = [];
+        
+        // Lista tabel do optymalizacji
+        $tables = [
+            'archive_logs',
+            'fetch_results',
+            'migration',
+            'notification_queue',
+            'push_subscriptions',
+            's3_transfers',
+            'settings',
+            'tasks',
+            'task_executions',
+            'task_history',
+            'users',
+            'user_logs',
+        ];
+        
+        try {
+            $db = Yii::$app->db;
+            
+            foreach ($tables as $table) {
+                try {
+                    // Użyj prefiksu tabeli z konfiguracji Yii
+                    $fullTableName = $db->tablePrefix . $table;
+                    
+                    // Wykonaj OPTIMIZE TABLE
+                    $db->createCommand("OPTIMIZE TABLE `{$fullTableName}`")->execute();
+                    
+                    $optimizedTables[] = $fullTableName;
+                    
+                    Yii::info("Optimized table: {$fullTableName}", __METHOD__);
+                } catch (\Exception $e) {
+                    $errors[] = [
+                        'table' => $table,
+                        'error' => $e->getMessage(),
+                    ];
+                    
+                    Yii::warning("Failed to optimize table {$table}: " . $e->getMessage(), __METHOD__);
+                }
+            }
+            
+        } catch (\Exception $e) {
+            Yii::error("Database optimization failed: " . $e->getMessage(), __METHOD__);
+            $errors[] = [
+                'general' => $e->getMessage(),
+            ];
+        }
+        
+        $duration = round((microtime(true) - $startTime) * 1000, 2);
+        
+        return [
+            'optimized_count' => count($optimizedTables),
+            'optimized_tables' => $optimizedTables,
+            'errors' => $errors,
+            'duration_ms' => $duration,
+        ];
     }
     
     /**
@@ -213,7 +287,7 @@ class DataArchiver extends Component
     {
         $filename = $this->archiveDir . '/fetch_results/' . $date . '.jsonl.gz';
         
-        // Otwórz plik do dopisywania
+        // Otwórz plik do dописywania
         $gz = gzopen($filename, 'ab9');
         
         foreach ($records as $record) {
